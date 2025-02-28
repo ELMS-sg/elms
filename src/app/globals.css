@@ -3,19 +3,117 @@
 @tailwind utilities;
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f8fafc;
+  --foreground: #1f2937;
+  --card: #ffffff;
+  --card-hover: #f8fafc;
+  --primary: #3b82f6;
+  --primary-light: #f0f7ff;
+  --accent-green: #22c55e;
+  --accent-yellow: #eab308;
+  --accent-red: #ef4444;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #0f172a;
+    --foreground: #f1f5f9;
+    --card: #1e293b;
+    --card-hover: #334155;
+    --primary: #3b82f6;
+    --primary-light: #1e3a8a;
   }
 }
 
 body {
-  color: var(--foreground);
+  color: #1f2937;
+  /* text-gray-900 equivalent */
   background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+}
+
+@layer base {
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    @apply font-bold text-gray-900;
+  }
+
+  h1 {
+    @apply text-3xl md:text-4xl;
+  }
+
+  h2 {
+    @apply text-2xl md:text-3xl;
+  }
+
+  h3 {
+    @apply text-xl md:text-2xl;
+  }
+
+  p {
+    @apply text-gray-700;
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-card rounded-lg shadow-card transition-all duration-200 hover:shadow-card-hover;
+  }
+
+  .btn {
+    @apply px-4 py-2 rounded-md font-medium transition-all duration-200;
+  }
+
+  .btn-primary {
+    @apply bg-primary-600 text-white hover:bg-primary-700 active:bg-primary-800;
+  }
+
+  .btn-outline {
+    @apply border border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400;
+  }
+
+  .btn-outline-primary {
+    @apply border border-primary-500 text-primary-600 hover:bg-primary-50;
+  }
+
+  .btn-accent-green {
+    @apply bg-accent-green text-white hover:bg-accent-green-dark;
+  }
+
+  .btn-accent-yellow {
+    @apply bg-accent-yellow text-white hover:bg-accent-yellow-dark;
+  }
+
+  .btn-accent-red {
+    @apply bg-accent-red text-white hover:bg-accent-red-dark;
+  }
+
+  .input {
+    @apply px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-primary-500 focus:border-primary-500 text-gray-900;
+  }
+
+  .badge {
+    @apply px-2 py-1 text-xs font-medium rounded-md;
+  }
+
+  .badge-primary {
+    @apply bg-primary-100 text-primary-700;
+  }
+
+  .badge-green {
+    @apply bg-accent-green-light text-accent-green-dark;
+  }
+
+  .badge-yellow {
+    @apply bg-accent-yellow-light text-accent-yellow-dark;
+  }
+
+  .badge-red {
+    @apply bg-accent-red-light text-accent-red-dark;
+  }
 }
