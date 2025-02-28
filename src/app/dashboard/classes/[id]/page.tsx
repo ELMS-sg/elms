@@ -212,9 +212,6 @@ function getClassData(id: string) {
 }
 
 export default async function ClassDetailPage({ params }: { params: { id: string } }) {
-    // Get authenticated user
-    const user = await requireServerAuth()
-
     // Get class data
     const classData = getClassData(params.id)
 

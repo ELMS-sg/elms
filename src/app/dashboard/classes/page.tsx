@@ -11,7 +11,6 @@ import {
     Users,
     GraduationCap,
     ChevronRight,
-    Star,
     MapPin,
     Globe
 } from "lucide-react"
@@ -24,8 +23,8 @@ export const metadata: Metadata = {
 export const dynamic = 'force-dynamic'
 
 export default async function ClassesPage() {
-    // Get authenticated user
-    const user = await requireServerAuth()
+    // Remove unused user variable if not needed
+    // const user = await requireServerAuth()
 
     // Mock data for enrolled classes
     const enrolledClasses = [
@@ -112,8 +111,8 @@ export default async function ClassesPage() {
                         <button
                             key={index}
                             className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${category.active
-                                    ? "bg-primary-100 text-primary-700"
-                                    : "bg-white text-gray-600 hover:bg-gray-50"
+                                ? "bg-primary-100 text-primary-700"
+                                : "bg-white text-gray-600 hover:bg-gray-50"
                                 }`}
                         >
                             {category.name}

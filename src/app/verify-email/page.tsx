@@ -51,7 +51,7 @@ function VerifyEmailContent() {
                     </div>
                     <h1 className="text-2xl font-bold text-gray-900 mb-2">Verify your email</h1>
                     <p className="text-gray-600">
-                        We've sent a verification link to:
+                        We&apos;ve sent a verification link to:
                     </p>
                     <p className="font-medium text-gray-800 mt-1 flex items-center justify-center">
                         <Mail className="w-4 h-4 mr-2 text-gray-500" />
@@ -62,7 +62,7 @@ function VerifyEmailContent() {
                 <div className="bg-primary-50 border border-primary-100 rounded-lg p-4 mb-6">
                     <p className="text-sm text-primary-800">
                         Please check your email and click on the verification link to activate your account.
-                        If you don't see the email, check your spam folder.
+                        If you don&apos;t see the email, check your spam folder.
                     </p>
                 </div>
 

@@ -24,13 +24,11 @@ export const metadata: Metadata = {
 
 export const dynamic = 'force-dynamic'
 
-interface AssignmentDetailPageProps {
-    params: {
-        id: string
-    }
-}
-
-export default async function AssignmentDetailPage({ params }: AssignmentDetailPageProps) {
+export default async function AssignmentDetailPage({
+    params
+}: {
+    params: { id: string }
+}) {
     // Get authenticated user
     const user = await requireServerAuth()
     const isTeacher = user.role === 'TEACHER'
@@ -50,8 +48,6 @@ export default async function AssignmentDetailPage({ params }: AssignmentDetailP
 
     // Get submission status
     const hasSubmission = !!assignment.submission
-    const isSubmitted = hasSubmission && assignment.submission.status === 'submitted'
-    const isGraded = hasSubmission && assignment.submission.status === 'graded'
 
     // Format submission date if available
     const submittedDate = assignment.submission?.submitted_at
@@ -79,7 +75,7 @@ export default async function AssignmentDetailPage({ params }: AssignmentDetailP
                     <div className="flex items-center">
                         <Clock className="w-4 h-4 mr-1" />
                         Due {dueDateDisplay}
-                        {isPastDue && !isGraded && (
+                        {isPastDue && !(assignment.submission?.status === 'graded') && (
                             <span className="ml-2 text-red-600 font-medium">
                                 (Past Due)
                             </span>
@@ -162,13 +158,13 @@ export default async function AssignmentDetailPage({ params }: AssignmentDetailP
                             {hasSubmission && (
                                 <div>
                                     <div className="flex items-center mb-4">
-                                        <div className={`px-3 py-1 rounded-full text-xs font-medium flex items-center ${isGraded
-                                                ? "bg-green-100 text-green-800"
-                                                : isLate
-                                                    ? "bg-yellow-100 text-yellow-800"
-                                                    : "bg-blue-100 text-blue-800"
+                                        <div className={`px-3 py-1 rounded-full text-xs font-medium flex items-center ${assignment.submission?.status === 'graded'
+                                            ? "bg-green-100 text-green-800"
+                                            : isLate
+                                                ? "bg-yellow-100 text-yellow-800"
+                                                : "bg-blue-100 text-blue-800"
                                             }`}>
-                                            {isGraded ? (
+                                            {assignment.submission?.status === 'graded' ? (
                                                 <>
                                                     <CheckCircle className="w-3 h-3 mr-1" />
                                                     Graded
@@ -222,7 +218,7 @@ export default async function AssignmentDetailPage({ params }: AssignmentDetailP
                                     )}
 
                                     {/* Grade and Feedback */}
-                                    {isGraded && (
+                                    {assignment.submission?.status === 'graded' && (
                                         <div className="bg-gray-50 p-4 rounded-lg">
                                             <div className="flex items-center justify-between mb-2">
                                                 <h3 className="text-sm font-medium text-gray-700">Grade:</h3>
@@ -243,7 +239,7 @@ export default async function AssignmentDetailPage({ params }: AssignmentDetailP
                                     )}
 
                                     {/* Resubmit Button (if not graded) */}
-                                    {!isGraded && (
+                                    {assignment.submission?.status !== 'graded' && (
                                         <div className="mt-4">
                                             <Link
                                                 href={`/dashboard/assignments/${assignment.id}/submit`}

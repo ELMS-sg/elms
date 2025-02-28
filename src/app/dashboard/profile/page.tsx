@@ -1,8 +1,11 @@
 import { Metadata } from "next"
 import { requireServerAuth } from "@/lib/actions"
+import { ArrowLeft } from "lucide-react"
+import Link from "next/link"
+import Image from "next/image"
 import ProfileForm from "@/components/profile/ProfileForm"
 import { getUserProfile } from "@/lib/user-actions"
-import { User, Mail, Calendar, BookOpen } from "lucide-react"
+import { Mail, Calendar, BookOpen } from "lucide-react"
 
 export const metadata: Metadata = {
     title: "My Profile | English Learning Center",

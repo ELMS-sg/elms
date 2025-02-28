@@ -122,7 +122,7 @@ export default async function DashboardPage({
                 {/* Welcome section */}
                 <div className="mb-8">
                     <h1 className="text-2xl font-bold text-gray-900">Welcome back, {user.name || "Student"}</h1>
-                    <p className="text-gray-600 mt-1">Here's an overview of your learning progress</p>
+                    <p className="text-gray-600 mt-1">Here&apos;s an overview of your learning progress</p>
                 </div>
 
                 {/* Stats Grid */}

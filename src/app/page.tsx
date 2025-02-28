@@ -6,10 +6,7 @@ import {
   Users,
   Calendar,
   Award,
-  CheckCircle,
-  ArrowRight,
   MessageSquare,
-  BarChart,
   Shield
 } from 'lucide-react'
 
@@ -175,7 +172,7 @@ export default function Home() {
                 </div>
               </div>
               <p className="text-gray-600 italic">
-                "This platform has completely transformed how I approach my studies. The organized course structure and interactive tools have made learning more engaging and effective."
+                &quot;This platform has completely transformed how I approach my studies. The organized course structure and interactive tools have made learning more engaging and effective.&quot;
               </p>
             </div>
 
@@ -191,7 +188,7 @@ export default function Home() {
                 </div>
               </div>
               <p className="text-gray-600 italic">
-                "As an educator, I've found this LMS to be incredibly intuitive. It allows me to create engaging content and track student progress effectively, making teaching more impactful."
+                &quot;As an educator, I&apos;ve found this LMS to be incredibly intuitive. It allows me to create engaging content and track student progress effectively, making teaching more impactful.&quot;
               </p>
             </div>
 
@@ -207,7 +204,7 @@ export default function Home() {
                 </div>
               </div>
               <p className="text-gray-600 italic">
-                "The collaborative features have been a game-changer for my group projects. Being able to communicate and share resources seamlessly has improved our teamwork significantly."
+                &quot;The collaborative features have been a game-changer for my group projects. Being able to communicate and share resources seamlessly has improved our teamwork significantly.&quot;
               </p>
             </div>
           </div>

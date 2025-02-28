@@ -2,29 +2,21 @@ import { Metadata } from "next"
 import Image from "next/image"
 import Link from "next/link"
 import { requireServerAuth } from "@/lib/actions"
+import { getStudentAssignments, getTeacherAssignments, getAssignmentsToGrade } from "@/lib/assignment-actions"
 import {
-    getStudentAssignments,
-    getTeacherAssignments,
-    getAssignmentsToGrade
-} from "@/lib/assignment-actions"
-import {
-    Calendar,
     Clock,
-    Users,
     Search,
     Filter,
     Plus,
-    FileText,
-    CheckCircle,
-    X,
     ChevronRight,
     Download,
     Upload,
-    AlertCircle,
     BookOpen,
-    BarChart
+    BarChart,
+    CheckCircle,
+    ArrowRight
 } from "lucide-react"
-import { formatDistanceToNow, format, isPast, isFuture } from "date-fns"
+import { format, isPast, formatDistanceToNow } from "date-fns"
 
 export const metadata: Metadata = {
     title: "Assignments | English Learning Center",
@@ -66,7 +58,7 @@ export default async function AssignmentsPage() {
     // Format dates and other display data
     const formatAssignmentForDisplay = (assignment) => {
         const dueDate = new Date(assignment.due_date)
-        let dueDateDisplay = format(dueDate, 'MMM d, yyyy')
+        const dueDateDisplay = format(dueDate, "MMM d, yyyy 'at' h:mm a")
 
         // For overdue assignments
         const isOverdue = isPast(dueDate) &&
@@ -316,8 +308,8 @@ export default async function AssignmentsPage() {
                             <div className="p-6 flex-grow">
                                 <div className="flex items-center justify-between mb-3">
                                     <span className={`px-3 py-1 text-xs font-medium rounded-full ${assignment.isOverdue
-                                            ? "bg-red-100 text-red-800"
-                                            : "bg-blue-100 text-blue-800"
+                                        ? "bg-red-100 text-red-800"
+                                        : "bg-blue-100 text-blue-800"
                                         }`}>
                                         {assignment.isOverdue
                                             ? "Overdue"
@@ -482,7 +474,7 @@ export default async function AssignmentsPage() {
                                             </span>
                                         </div>
                                         <p className="text-sm text-gray-600 italic">
-                                            "{assignment.submission?.feedback || "No feedback provided."}"
+                                            &quot;{assignment.submission?.feedback || "No feedback provided."}&quot;
                                         </p>
                                     </div>
                                 </div>

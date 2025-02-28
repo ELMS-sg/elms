@@ -22,9 +22,6 @@ export const metadata: Metadata = {
 export const dynamic = 'force-dynamic'
 
 export default async function ScheduleMeetingPage() {
-    // Get authenticated user
-    const user = await requireServerAuth()
-
     // Mock data for teachers
     const teachers = [
         {

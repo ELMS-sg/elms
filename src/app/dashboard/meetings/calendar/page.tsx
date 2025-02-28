@@ -8,7 +8,6 @@ import {
     ArrowLeft,
     Video,
     MapPin,
-    Users
 } from "lucide-react"
 
 export const metadata: Metadata = {
@@ -19,9 +18,6 @@ export const metadata: Metadata = {
 export const dynamic = 'force-dynamic'
 
 export default async function MeetingCalendarPage() {
-    // Get authenticated user
-    const user = await requireServerAuth()
-
     // Mock data for current month and year
     const currentMonth = "March"
     const currentYear = 2024
@@ -111,8 +107,8 @@ export default async function MeetingCalendarPage() {
                                         <div
                                             key={eventIndex}
                                             className={`text-xs p-1 rounded truncate ${event.type === 'one-on-one'
-                                                    ? 'bg-primary-50 text-primary-700 border-l-2 border-primary-500'
-                                                    : 'bg-yellow-50 text-yellow-700 border-l-2 border-yellow-500'
+                                                ? 'bg-primary-50 text-primary-700 border-l-2 border-primary-500'
+                                                : 'bg-yellow-50 text-yellow-700 border-l-2 border-yellow-500'
                                                 }`}
                                         >
                                             <div className="flex items-center">

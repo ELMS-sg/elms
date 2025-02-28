@@ -15,7 +15,6 @@ import {
     CheckCircle,
     X,
     MessageSquare,
-    Globe,
     BookOpen
 } from "lucide-react"
 
@@ -27,9 +26,6 @@ export const metadata: Metadata = {
 export const dynamic = 'force-dynamic'
 
 export default async function MeetingsPage() {
-    // Get authenticated user
-    const user = await requireServerAuth()
-
     // Mock data for upcoming meetings
     const upcomingMeetings = [
         {
