@@ -33,21 +33,28 @@ export async function getUserProfile(userId: string) {
 
     // If user is a student, get their enrollments
     if (user.role === "STUDENT") {
-        const { data: enrollments, error: enrollmentsError } = await supabase
-            .from("enrollments")
+        const { data: enrollments, error: enrollmentError } = await supabase
+            .from("class_enrollments")
             .select(`
-        id,
-        class:classes (
-          id,
-          name
-        )
-      `)
-            .eq("student_id", userId)
+                id,
+                class_id,
+                classes:class_id (
+                    id,
+                    name
+                )
+            `)
+            .eq("student_id", user.id)
 
-        if (enrollmentsError) {
-            console.error("Error fetching student enrollments:", enrollmentsError)
+        if (enrollmentError) {
+            console.error("Error fetching student enrollments:", enrollmentError)
+            user.enrollments = []
         } else {
-            user.enrollments = enrollments
+            // Format the enrollments to have a 'class' property for easier access
+            user.enrollments = enrollments.map(enrollment => ({
+                id: enrollment.id,
+                class_id: enrollment.class_id,
+                class: enrollment.classes || { name: "Unknown Class" }
+            }))
         }
     }
 
@@ -60,6 +67,7 @@ export async function getUserProfile(userId: string) {
 
         if (classesError) {
             console.error("Error fetching teacher classes:", classesError)
+            user.classes = []
         } else {
             user.classes = classes
         }

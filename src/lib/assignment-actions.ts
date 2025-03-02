@@ -13,109 +13,448 @@ import {
     AssignmentWithStatus
 } from '@/types/assignments'
 import { revalidatePath } from 'next/cache'
+import { cache } from 'react'
+import { Database } from '@/types/supabase'
+import { createSampleClassData } from './class-actions'
 
-const getSupabase = () => {
+const getSupabase = cache(() => {
     const cookieStore = cookies()
-    return createRouteHandlerClient({ cookies: () => cookieStore })
+    return createRouteHandlerClient<Database>({ cookies: () => cookieStore })
+})
+
+/**
+ * Create sample assignment data for a new user
+ * This is used to ensure new users have data to see
+ */
+export async function createSampleAssignmentData(userId: string, userRole: string) {
+    try {
+        console.log('createSampleAssignmentData: Starting function for user', userId, userRole)
+        const supabase = getSupabase()
+
+        // Only create sample data for students
+        if (userRole !== 'STUDENT') {
+            console.log('createSampleAssignmentData: User is not a student, skipping')
+            return
+        }
+
+        // Get the classes the student is enrolled in
+        const { data: enrollments, error: enrollmentError } = await supabase
+            .from('class_enrollments')
+            .select('class_id')
+            .eq('student_id', userId)
+
+        if (enrollmentError || !enrollments || enrollments.length === 0) {
+            console.log('createSampleAssignmentData: No enrollments found for user')
+            return
+        }
+
+        console.log('createSampleAssignmentData: Found', enrollments.length, 'enrollments')
+
+        // Get the teacher IDs for these classes
+        const classIds = enrollments.map(e => e.class_id)
+        const { data: classes, error: classesError } = await supabase
+            .from('classes')
+            .select('id, teacher_id')
+            .in('id', classIds)
+
+        if (classesError || !classes || classes.length === 0) {
+            console.log('createSampleAssignmentData: No classes found')
+            return
+        }
+
+        // Create sample assignments for each class
+        for (const cls of classes) {
+            // Check if the class already has assignments
+            const { data: existingAssignments, error: checkError } = await supabase
+                .from('assignments')
+                .select('id')
+                .eq('class_id', cls.id)
+                .limit(1)
+
+            if (!checkError && existingAssignments && existingAssignments.length > 0) {
+                console.log('createSampleAssignmentData: Class already has assignments, skipping', cls.id)
+                continue
+            }
+
+            // Create sample assignments
+            const now = new Date()
+
+            // Assignment due in 7 days
+            const dueDateUpcoming = new Date()
+            dueDateUpcoming.setDate(dueDateUpcoming.getDate() + 7)
+
+            // Assignment due in 14 days
+            const dueDateFuture = new Date()
+            dueDateFuture.setDate(dueDateFuture.getDate() + 14)
+
+            // Create upcoming assignment
+            const { error: createError1 } = await supabase
+                .from('assignments')
+                .insert({
+                    title: 'Reading Comprehension Exercise',
+                    description: 'Complete the reading passage and answer the questions that follow.',
+                    class_id: cls.id,
+                    teacher_id: cls.teacher_id,
+                    due_date: dueDateUpcoming.toISOString(),
+                    points: 100,
+                    assignment_type: 'homework'
+                })
+
+            if (createError1) {
+                console.error('Error creating sample assignment 1:', createError1)
+            }
+
+            // Create future assignment
+            const { error: createError2 } = await supabase
+                .from('assignments')
+                .insert({
+                    title: 'Grammar and Vocabulary Test',
+                    description: 'Test covering the grammar and vocabulary from units 1-3.',
+                    class_id: cls.id,
+                    teacher_id: cls.teacher_id,
+                    due_date: dueDateFuture.toISOString(),
+                    points: 150,
+                    assignment_type: 'test'
+                })
+
+            if (createError2) {
+                console.error('Error creating sample assignment 2:', createError2)
+            }
+
+            console.log('createSampleAssignmentData: Created sample assignments for class', cls.id)
+        }
+
+        console.log('createSampleAssignmentData: Completed creating sample assignments')
+    } catch (error) {
+        console.error('Exception in createSampleAssignmentData:', error)
+    }
 }
 
 export async function getStudentAssignments() {
-    const user = await requireServerAuth()
-    const supabase = getSupabase()
+    try {
+        console.log('getStudentAssignments: Starting function')
+        const user = await requireServerAuth()
+        console.log('getStudentAssignments: User authenticated', user.id, user.role)
 
-    if (user.role !== 'STUDENT') {
-        throw new Error('Only students can access this endpoint')
-    }
+        const supabase = getSupabase()
 
-    const { data: enrollments, error: enrollmentError } = await supabase
-        .from('enrollments')
-        .select('class_id')
-        .eq('student_id', user.id)
+        if (user.role !== 'STUDENT') {
+            console.log('getStudentAssignments: User is not a student', user.role)
+            throw new Error('Only students can access this endpoint')
+        }
 
-    if (enrollmentError) {
-        console.error('Error fetching enrollments:', enrollmentError)
-        return []
-    }
+        // Get the classes the student is enrolled in
+        console.log('getStudentAssignments: Fetching enrollments for student', user.id)
+        const { data: enrollments, error: enrollmentError } = await supabase
+            .from('class_enrollments')
+            .select('class_id')
+            .eq('student_id', user.id)
 
-    if (!enrollments || enrollments.length === 0) {
-        return []
-    }
+        if (enrollmentError) {
+            console.error('Error fetching enrollments:', enrollmentError)
+            return []
+        }
 
-    const classIds = enrollments.map(e => e.class_id)
+        console.log('getStudentAssignments: Enrollments fetched', enrollments?.length || 0)
 
-    // Get assignments for these classes
-    const { data: assignments, error: assignmentsError } = await supabase
-        .from('assignments')
-        .select(`
-            *,
-            classes (
-                id,
-                name
-            ),
-            users!assignments_teacher_id_fkey (
-                id,
-                name,
-                email
-            )
-        `)
-        .in('class_id', classIds)
-        .order('due_date', { ascending: true })
+        if (!enrollments || enrollments.length === 0) {
+            console.log('getStudentAssignments: No enrollments found, attempting to create sample data')
 
-    if (assignmentsError) {
-        console.error('Error fetching assignments:', assignmentsError)
-        return []
-    }
+            try {
+                // Create sample class enrollments for the user
+                await createSampleClassData(user.id, user.role)
 
-    // Get submissions for these assignments
-    const assignmentIds = assignments.map(a => a.id)
-    const { data: submissions, error: submissionsError } = await supabase
-        .from('submissions')
-        .select('*')
-        .eq('student_id', user.id)
-        .in('assignment_id', assignmentIds)
+                // Create sample assignments
+                await createSampleAssignmentData(user.id, user.role)
 
-    if (submissionsError) {
-        console.error('Error fetching submissions:', submissionsError)
-        return []
-    }
+                // Try fetching enrollments again
+                const { data: newEnrollments, error: newEnrollmentError } = await supabase
+                    .from('class_enrollments')
+                    .select('class_id')
+                    .eq('student_id', user.id)
 
-    // Format assignments with submission status
-    const now = new Date()
-    const formattedAssignments = assignments.map(assignment => {
-        const submission = submissions?.find(s => s.assignment_id === assignment.id)
-        const dueDate = new Date(assignment.due_date)
+                if (newEnrollmentError) {
+                    console.error('Error fetching new enrollments:', newEnrollmentError)
+                    return []
+                }
 
-        let status: 'pending' | 'submitted' | 'completed' | 'late' | 'overdue' = 'pending'
-        let isLate = false
+                if (!newEnrollments || newEnrollments.length === 0) {
+                    console.log('getStudentAssignments: Still no enrollments found after creating sample data')
+                    return []
+                }
 
-        if (submission) {
-            if (submission.status === 'graded') {
-                status = 'completed'
-            } else if (submission.status === 'submitted') {
-                status = 'submitted'
-                // Check if it was submitted late
-                const submittedDate = new Date(submission.submitted_at)
-                isLate = submittedDate > dueDate
+                console.log('getStudentAssignments: New enrollments fetched', newEnrollments.length)
+
+                // Continue with the new enrollments
+                const classIds = newEnrollments.map(e => e.class_id)
+                console.log('getStudentAssignments: Class IDs', classIds)
+
+                // Get assignments for these classes - FIXED QUERY
+                console.log('getStudentAssignments: Fetching assignments for classes')
+                const { data: assignments, error: assignmentsError } = await supabase
+                    .from('assignments')
+                    .select(`
+                        *,
+                        classes (
+                            id,
+                            name
+                        )
+                    `)
+                    .in('class_id', classIds)
+                    .order('due_date', { ascending: true })
+
+                if (assignmentsError) {
+                    console.error('Error fetching assignments:', assignmentsError)
+                    return []
+                }
+
+                console.log('getStudentAssignments: Assignments fetched after creating sample data', assignments?.length || 0)
+
+                if (!assignments || assignments.length === 0) {
+                    console.log('getStudentAssignments: No assignments found after creating sample data')
+                    return []
+                }
+
+                // Get teacher information separately - filter out undefined teacher_ids
+                const teacherIds = [...new Set(assignments.map(a => a.teacher_id).filter(id => id !== undefined && id !== null))];
+
+                let teacherMap = {};
+                if (teacherIds.length > 0) {
+                    const { data: teachers, error: teachersError } = await supabase
+                        .from('users')
+                        .select('id, name, email')
+                        .in('id', teacherIds);
+
+                    if (teachersError) {
+                        console.error('Error fetching teachers:', teachersError);
+                    }
+
+                    // Create a map of teacher data for easy lookup
+                    if (teachers) {
+                        teachers.forEach(teacher => {
+                            teacherMap[teacher.id] = teacher;
+                        });
+                    }
+                }
+
+                // Format assignments with submission status
+                const now = new Date()
+                const formattedAssignments = assignments.map(assignment => {
+                    const dueDate = new Date(assignment.due_date)
+                    let status: 'pending' | 'submitted' | 'completed' | 'late' | 'overdue' = 'pending'
+
+                    if (dueDate < now) {
+                        status = 'overdue'
+                    }
+
+                    // Calculate days remaining
+                    const daysRemaining = Math.ceil((dueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+
+                    return {
+                        ...assignment,
+                        teacher: teacherMap[assignment.teacher_id] || { name: 'Unknown Teacher' },
+                        course: assignment.classes,
+                        submission: null,
+                        status,
+                        isLate: false,
+                        assignment_type: assignment.assignment_type || 'homework', // Ensure assignment_type is always defined
+                        daysRemaining: daysRemaining > 0 ? daysRemaining : 0
+                    }
+                })
+
+                return formattedAssignments
+            } catch (error) {
+                console.error('Error creating sample data in getStudentAssignments:', error)
+                return []
             }
-        } else if (dueDate < now) {
-            status = 'overdue'
         }
 
-        // Calculate days remaining
-        const daysRemaining = Math.ceil((dueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+        const classIds = enrollments.map(e => e.class_id)
+        console.log('getStudentAssignments: Class IDs', classIds)
 
-        return {
-            ...assignment,
-            teacher: assignment.users,
-            course: assignment.classes,
-            submission,
-            status,
-            isLate,
-            daysRemaining: daysRemaining > 0 ? daysRemaining : 0
+        // Get assignments for these classes - FIXED QUERY
+        console.log('getStudentAssignments: Fetching assignments for classes')
+        const { data: assignments, error: assignmentsError } = await supabase
+            .from('assignments')
+            .select(`
+                *,
+                classes (
+                    id,
+                    name
+                )
+            `)
+            .in('class_id', classIds)
+            .order('due_date', { ascending: true })
+
+        if (assignmentsError) {
+            console.error('Error fetching assignments:', assignmentsError)
+            return []
         }
-    })
 
-    return formattedAssignments
+        console.log('getStudentAssignments: Assignments fetched', assignments?.length || 0)
+
+        if (!assignments || assignments.length === 0) {
+            console.log('getStudentAssignments: No assignments found, attempting to create sample data')
+
+            try {
+                // Create sample assignments
+                await createSampleAssignmentData(user.id, user.role)
+
+                // Try fetching assignments again
+                const { data: newAssignments, error: newAssignmentsError } = await supabase
+                    .from('assignments')
+                    .select(`
+                        *,
+                        classes (
+                            id,
+                            name
+                        )
+                    `)
+                    .in('class_id', classIds)
+                    .order('due_date', { ascending: true })
+
+                if (newAssignmentsError) {
+                    console.error('Error fetching new assignments:', newAssignmentsError)
+                    return []
+                }
+
+                if (!newAssignments || newAssignments.length === 0) {
+                    console.log('getStudentAssignments: Still no assignments found after creating sample data')
+                    return []
+                }
+
+                console.log('getStudentAssignments: New assignments fetched', newAssignments.length)
+
+                // Get teacher information separately - filter out undefined teacher_ids
+                const teacherIds = [...new Set(newAssignments.map(a => a.teacher_id).filter(id => id !== undefined && id !== null))];
+
+                let teacherMap = {};
+                if (teacherIds.length > 0) {
+                    const { data: teachers, error: teachersError } = await supabase
+                        .from('users')
+                        .select('id, name, email')
+                        .in('id', teacherIds);
+
+                    if (teachersError) {
+                        console.error('Error fetching teachers:', teachersError);
+                    }
+
+                    // Create a map of teacher data for easy lookup
+                    if (teachers) {
+                        teachers.forEach(teacher => {
+                            teacherMap[teacher.id] = teacher;
+                        });
+                    }
+                }
+
+                // Format assignments with submission status
+                const now = new Date()
+                const formattedAssignments = newAssignments.map(assignment => {
+                    const dueDate = new Date(assignment.due_date)
+                    let status: 'pending' | 'submitted' | 'completed' | 'late' | 'overdue' = 'pending'
+
+                    if (dueDate < now) {
+                        status = 'overdue'
+                    }
+
+                    // Calculate days remaining
+                    const daysRemaining = Math.ceil((dueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+
+                    return {
+                        ...assignment,
+                        teacher: teacherMap[assignment.teacher_id] || { name: 'Unknown Teacher' },
+                        course: assignment.classes,
+                        submission: null,
+                        status,
+                        isLate: false,
+                        assignment_type: assignment.assignment_type || 'homework', // Ensure assignment_type is always defined
+                        daysRemaining: daysRemaining > 0 ? daysRemaining : 0
+                    }
+                })
+
+                return formattedAssignments
+            } catch (error) {
+                console.error('Error creating sample data in getStudentAssignments:', error)
+                return []
+            }
+        }
+
+        // Get submissions for these assignments
+        const assignmentIds = assignments.map(a => a.id)
+        const { data: submissions, error: submissionsError } = await supabase
+            .from('submissions')
+            .select('*')
+            .eq('student_id', user.id)
+            .in('assignment_id', assignmentIds)
+
+        if (submissionsError) {
+            console.error('Error fetching submissions:', submissionsError)
+        }
+
+        // Get teacher information separately - filter out undefined teacher_ids
+        const teacherIds = [...new Set(assignments.map(a => a.teacher_id).filter(id => id !== undefined && id !== null))];
+
+        let teacherMap = {};
+        if (teacherIds.length > 0) {
+            const { data: teachers, error: teachersError } = await supabase
+                .from('users')
+                .select('id, name, email')
+                .in('id', teacherIds);
+
+            if (teachersError) {
+                console.error('Error fetching teachers:', teachersError);
+            }
+
+            // Create a map of teacher data for easy lookup
+            if (teachers) {
+                teachers.forEach(teacher => {
+                    teacherMap[teacher.id] = teacher;
+                });
+            }
+        }
+
+        // Format assignments with submission status
+        const now = new Date()
+        const formattedAssignments = assignments.map(assignment => {
+            const submission = submissions?.find(s => s.assignment_id === assignment.id)
+            const dueDate = new Date(assignment.due_date)
+
+            let status: 'pending' | 'submitted' | 'completed' | 'late' | 'overdue' = 'pending'
+            let isLate = false
+
+            if (submission) {
+                if (submission.status === 'graded') {
+                    status = 'completed'
+                } else if (submission.status === 'submitted') {
+                    status = 'submitted'
+                    // Check if it was submitted late
+                    const submittedDate = new Date(submission.submitted_at)
+                    isLate = submittedDate > dueDate
+                }
+            } else if (dueDate < now) {
+                status = 'overdue'
+            }
+
+            // Calculate days remaining
+            const daysRemaining = Math.ceil((dueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+
+            return {
+                ...assignment,
+                teacher: teacherMap[assignment.teacher_id] || { name: 'Unknown Teacher' },
+                course: assignment.classes,
+                submission,
+                status,
+                isLate,
+                assignment_type: assignment.assignment_type || 'homework', // Ensure assignment_type is always defined
+                daysRemaining: daysRemaining > 0 ? daysRemaining : 0
+            }
+        })
+
+        return formattedAssignments
+    } catch (error) {
+        console.error('Exception in getStudentAssignments:', error)
+        return []
+    }
 }
 
 // Get all assignments for a teacher
@@ -177,11 +516,6 @@ export async function getAssignmentsToGrade() {
                     id,
                     name
                 )
-            ),
-            users!submissions_student_id_fkey (
-                id,
-                name,
-                email
             )
         `)
         .eq('assignments.teacher_id', user.id)
@@ -191,6 +525,25 @@ export async function getAssignmentsToGrade() {
     if (error) {
         console.error('Error fetching submissions to grade:', error)
         return []
+    }
+
+    // Get student information separately
+    const studentIds = [...new Set(data.map(s => s.student_id))];
+    const { data: students, error: studentsError } = await supabase
+        .from('users')
+        .select('id, name, email')
+        .in('id', studentIds);
+
+    if (studentsError) {
+        console.error('Error fetching students:', studentsError);
+    }
+
+    // Create a map of student data for easy lookup
+    const studentMap = {};
+    if (students) {
+        students.forEach(student => {
+            studentMap[student.id] = student;
+        });
     }
 
     // Get submission files
@@ -214,7 +567,7 @@ export async function getAssignmentsToGrade() {
                 ...submission.assignments,
                 course: submission.assignments.classes
             },
-            student: submission.users,
+            student: studentMap[submission.student_id] || { name: 'Unknown Student' },
             submitted_at: submission.submitted_at,
             files: submissionFiles
         }
@@ -234,11 +587,6 @@ export async function getAssignment(assignmentId: string) {
             classes (
                 id,
                 name
-            ),
-            users!assignments_teacher_id_fkey (
-                id,
-                name,
-                email
             )
         `)
         .eq('id', assignmentId)
@@ -247,6 +595,17 @@ export async function getAssignment(assignmentId: string) {
     if (error) {
         console.error('Error fetching assignment:', error)
         return null
+    }
+
+    // Get teacher information separately
+    const { data: teacher, error: teacherError } = await supabase
+        .from('users')
+        .select('id, name, email')
+        .eq('id', data.teacher_id)
+        .single();
+
+    if (teacherError) {
+        console.error('Error fetching teacher:', teacherError);
     }
 
     // Get assignment files
@@ -293,7 +652,7 @@ export async function getAssignment(assignmentId: string) {
 
     return {
         ...data,
-        teacher: data.users,
+        teacher: teacher || { name: 'Unknown Teacher' },
         course: data.classes,
         files: files || [],
         submission

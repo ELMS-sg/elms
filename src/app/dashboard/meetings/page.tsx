@@ -2,6 +2,7 @@ import { Metadata } from "next"
 import Image from "next/image"
 import Link from "next/link"
 import { requireServerAuth } from "@/lib/actions"
+import { getUpcomingMeetings, getPastMeetings, getAvailableMeetings } from "@/lib/meeting-actions"
 import {
     Calendar,
     Clock,
@@ -26,155 +27,27 @@ export const metadata: Metadata = {
 export const dynamic = 'force-dynamic'
 
 export default async function MeetingsPage() {
-    // Mock data for upcoming meetings
-    const upcomingMeetings = [
-        {
-            id: "1",
-            title: "IELTS Speaking Practice",
-            description: "One-on-one speaking practice session focusing on Part 2 (Cue Card) responses.",
-            teacher: {
-                name: "Dr. Sarah Johnson",
-                image: "/images/teacher-sarah.jpg",
-                title: "IELTS Speaking Coach"
-            },
-            type: "ONE_ON_ONE",
-            startTime: "Today, 3:00 PM",
-            endTime: "Today, 4:00 PM",
-            duration: "1 hour",
-            isOnline: true,
-            meetingLink: "https://zoom.us/j/123456789",
-            location: null,
-            status: "confirmed",
-            relatedClass: {
-                id: "1",
-                name: "IELTS Academic Preparation"
-            }
-        },
-        {
-            id: "2",
-            title: "TOEIC Listening Group Session",
-            description: "Group practice for TOEIC listening section with advanced techniques.",
-            teacher: {
-                name: "Prof. Michael Chen",
-                image: "/images/teacher-michael.jpg",
-                title: "TOEIC Specialist"
-            },
-            type: "GROUP",
-            startTime: "Tomorrow, 5:30 PM",
-            endTime: "Tomorrow, 7:00 PM",
-            duration: "1.5 hours",
-            isOnline: true,
-            meetingLink: "https://zoom.us/j/987654321",
-            location: null,
-            status: "confirmed",
-            relatedClass: {
-                id: "2",
-                name: "TOEIC Intensive Course"
-            },
-            participants: 8,
-            maxParticipants: 10
-        },
-        {
-            id: "3",
-            title: "Writing Feedback Session",
-            description: "Review of your recent IELTS writing task submissions with personalized feedback.",
-            teacher: {
-                name: "Lisa Wong",
-                image: "/images/teacher-lisa.jpg",
-                title: "IELTS Writing Coach"
-            },
-            type: "ONE_ON_ONE",
-            startTime: "Feb 28, 4:00 PM",
-            endTime: "Feb 28, 5:00 PM",
-            duration: "1 hour",
-            isOnline: false,
-            meetingLink: null,
-            location: "Main Campus, Room 204",
-            status: "confirmed",
-            relatedClass: {
-                id: "3",
-                name: "IELTS Speaking & Writing"
-            }
-        }
-    ]
+    // Get the authenticated user
+    const user = await requireServerAuth()
 
-    // Mock data for available meeting slots
-    const availableMeetings = [
-        {
-            id: "4",
-            title: "TOEIC Grammar Consultation",
-            description: "One-on-one session to address your specific grammar questions for TOEIC.",
-            teacher: {
-                name: "Dr. James Wilson",
-                image: "/images/teacher-james.jpg",
-                title: "Grammar Specialist"
-            },
-            type: "ONE_ON_ONE",
-            startTime: "Mar 2, 2:00 PM",
-            endTime: "Mar 2, 3:00 PM",
-            duration: "1 hour",
-            isOnline: false,
-            location: "Main Campus, Room 108",
-            availableSlots: 1,
-            relatedClass: {
-                id: "4",
-                name: "TOEIC Grammar Mastery"
-            }
-        },
-        {
-            id: "5",
-            title: "IELTS Reading Strategies",
-            description: "Group session covering advanced reading strategies for IELTS Academic.",
-            teacher: {
-                name: "Dr. Sarah Johnson",
-                image: "/images/teacher-sarah.jpg",
-                title: "IELTS Reading Specialist"
-            },
-            type: "GROUP",
-            startTime: "Mar 3, 6:00 PM",
-            endTime: "Mar 3, 7:30 PM",
-            duration: "1.5 hours",
-            isOnline: true,
-            meetingLink: "https://zoom.us/j/123456789",
-            location: null,
-            availableSlots: 5,
-            maxParticipants: 12,
-            relatedClass: {
-                id: "1",
-                name: "IELTS Academic Preparation"
-            }
-        },
-        {
-            id: "6",
-            title: "Pronunciation Workshop",
-            description: "Group session focusing on English pronunciation for IELTS speaking.",
-            teacher: {
-                name: "Lisa Wong",
-                image: "/images/teacher-lisa.jpg",
-                title: "Pronunciation Expert"
-            },
-            type: "GROUP",
-            startTime: "Mar 5, 5:00 PM",
-            endTime: "Mar 5, 6:30 PM",
-            duration: "1.5 hours",
-            isOnline: false,
-            location: "Downtown Branch, Room 105",
-            availableSlots: 8,
-            maxParticipants: 10,
-            relatedClass: {
-                id: "3",
-                name: "IELTS Speaking & Writing"
-            }
-        }
-    ]
+    // Get upcoming and past meetings
+    const upcomingMeetings = await getUpcomingMeetings()
+    const pastMeetings = await getPastMeetings()
 
-    // Mock data for meeting categories
+    // Get available meeting slots
+    const availableMeetings = await getAvailableMeetings()
+
+    // Calculate counts for categories
+    const oneOnOneCount = [...upcomingMeetings, ...availableMeetings].filter(m => m.type === "ONE_ON_ONE").length
+    const groupCount = [...upcomingMeetings, ...availableMeetings].filter(m => m.type === "GROUP").length
+
+    // Meeting categories
     const categories = [
         { name: "All Meetings", count: upcomingMeetings.length + availableMeetings.length, active: true },
         { name: "Upcoming", count: upcomingMeetings.length, active: false },
         { name: "Available", count: availableMeetings.length, active: false },
-        { name: "One-on-One", count: 3, active: false },
-        { name: "Group", count: 3, active: false },
+        { name: "One-on-One", count: oneOnOneCount, active: false },
+        { name: "Group", count: groupCount, active: false },
     ]
 
     return (
@@ -503,7 +376,9 @@ export default async function MeetingsPage() {
                         </div>
                         <div>
                             <p className="text-sm text-gray-500">Online Sessions</p>
-                            <p className="text-xl font-semibold text-gray-900">3</p>
+                            <p className="text-xl font-semibold text-gray-900">
+                                {[...upcomingMeetings, ...availableMeetings].filter(m => m.isOnline).length}
+                            </p>
                         </div>
                     </div>
                 </div>
@@ -514,7 +389,9 @@ export default async function MeetingsPage() {
                         </div>
                         <div>
                             <p className="text-sm text-gray-500">In-Person Sessions</p>
-                            <p className="text-xl font-semibold text-gray-900">3</p>
+                            <p className="text-xl font-semibold text-gray-900">
+                                {[...upcomingMeetings, ...availableMeetings].filter(m => !m.isOnline).length}
+                            </p>
                         </div>
                     </div>
                 </div>
@@ -525,11 +402,25 @@ export default async function MeetingsPage() {
                         </div>
                         <div>
                             <p className="text-sm text-gray-500">Total Hours</p>
-                            <p className="text-xl font-semibold text-gray-900">7</p>
+                            <p className="text-xl font-semibold text-gray-900">
+                                {calculateTotalHours(upcomingMeetings)}
+                            </p>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
     )
+}
+
+// Helper function to calculate total hours from meetings
+function calculateTotalHours(meetings) {
+    return meetings.reduce((total, meeting) => {
+        // Extract hours from duration string (e.g., "1 hour", "1.5 hours")
+        const durationMatch = meeting.duration.match(/(\d+(\.\d+)?)/)
+        if (durationMatch) {
+            return total + parseFloat(durationMatch[1])
+        }
+        return total
+    }, 0)
 } 

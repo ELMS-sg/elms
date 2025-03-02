@@ -2,6 +2,7 @@ import { Metadata } from "next"
 import Image from "next/image"
 import Link from "next/link"
 import { requireServerAuth } from "@/lib/actions"
+import { getAvailableTeachers, getTeacherAvailability } from "@/lib/meeting-actions"
 import {
     Calendar,
     Clock,
@@ -22,50 +23,19 @@ export const metadata: Metadata = {
 export const dynamic = 'force-dynamic'
 
 export default async function ScheduleMeetingPage() {
-    // Mock data for teachers
-    const teachers = [
-        {
-            id: "1",
-            name: "Dr. Sarah Johnson",
-            image: "/images/teacher-sarah.jpg",
-            title: "IELTS Examiner & Senior Instructor",
-            specialties: ["IELTS Speaking", "IELTS Reading", "Academic Writing"],
-            rating: 4.9,
-            reviewCount: 124
-        },
-        {
-            id: "2",
-            name: "Prof. Michael Chen",
-            image: "/images/teacher-michael.jpg",
-            title: "TOEIC Specialist & Business English Trainer",
-            specialties: ["TOEIC Listening", "Business English", "Presentation Skills"],
-            rating: 4.8,
-            reviewCount: 98
-        },
-        {
-            id: "3",
-            name: "Lisa Wong",
-            image: "/images/teacher-lisa.jpg",
-            title: "IELTS Writing & Speaking Coach",
-            specialties: ["IELTS Writing", "Pronunciation", "Grammar"],
-            rating: 4.7,
-            reviewCount: 86
-        },
-        {
-            id: "4",
-            name: "Dr. James Wilson",
-            image: "/images/teacher-james.jpg",
-            title: "Grammar Specialist & TOEIC Instructor",
-            specialties: ["TOEIC Grammar", "Vocabulary Building", "Test Strategies"],
-            rating: 4.9,
-            reviewCount: 112
-        }
-    ]
+    // Get the authenticated user
+    const user = await requireServerAuth()
+
+    // Get available teachers
+    const teachers = await getAvailableTeachers()
+
+    // Get availability for the first teacher (default selection)
+    const availability = await getTeacherAvailability(teachers[0].id)
 
     // Mock data for meeting types
     const meetingTypes = [
         {
-            id: "one-on-one",
+            id: "ONE_ON_ONE",
             name: "One-on-One Session",
             description: "Private session with a teacher focused on your specific needs",
             icon: <Users className="w-5 h-5" />,
@@ -73,7 +43,7 @@ export default async function ScheduleMeetingPage() {
             price: ["$25", "$35", "$45"]
         },
         {
-            id: "group",
+            id: "GROUP",
             name: "Group Session",
             description: "Learn with peers in a collaborative environment (max 10 students)",
             icon: <Users className="w-5 h-5" />,
@@ -232,11 +202,18 @@ export default async function ScheduleMeetingPage() {
                                         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                                             <Calendar className="h-5 w-5 text-gray-400" />
                                         </div>
-                                        <input
-                                            type="date"
-                                            className="input pl-10 w-full"
-                                            placeholder="Select date"
-                                        />
+                                        <select className="input pl-10 w-full">
+                                            <option value="">Select date</option>
+                                            {availability.map((day, index) => (
+                                                <option key={index} value={day.date}>
+                                                    {new Date(day.date).toLocaleDateString('en-US', {
+                                                        weekday: 'short',
+                                                        month: 'short',
+                                                        day: 'numeric'
+                                                    })}
+                                                </option>
+                                            ))}
+                                        </select>
                                     </div>
                                 </div>
                                 <div>
@@ -247,15 +224,17 @@ export default async function ScheduleMeetingPage() {
                                         </div>
                                         <select className="input pl-10 w-full">
                                             <option value="">Select time</option>
-                                            <option value="09:00">9:00 AM</option>
-                                            <option value="10:00">10:00 AM</option>
-                                            <option value="11:00">11:00 AM</option>
-                                            <option value="13:00">1:00 PM</option>
-                                            <option value="14:00">2:00 PM</option>
-                                            <option value="15:00">3:00 PM</option>
-                                            <option value="16:00">4:00 PM</option>
-                                            <option value="17:00">5:00 PM</option>
-                                            <option value="18:00">6:00 PM</option>
+                                            {availability[0]?.slots.map((slot, index) => (
+                                                <option key={index} value={slot}>
+                                                    {slot.includes(':')
+                                                        ? new Date(`2024-01-01T${slot}`).toLocaleTimeString('en-US', {
+                                                            hour: 'numeric',
+                                                            minute: 'numeric',
+                                                            hour12: true
+                                                        })
+                                                        : slot}
+                                                </option>
+                                            ))}
                                         </select>
                                     </div>
                                 </div>

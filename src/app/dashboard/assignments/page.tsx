@@ -14,9 +14,8 @@ import {
     BookOpen,
     BarChart,
     CheckCircle,
-    ArrowRight
 } from "lucide-react"
-import { format, isPast, formatDistanceToNow } from "date-fns"
+import { format, isPast } from "date-fns"
 
 export const metadata: Metadata = {
     title: "Assignments | English Learning Center",

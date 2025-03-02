@@ -3,12 +3,22 @@
 import { cookies } from 'next/headers'
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
 import { redirect } from 'next/navigation'
+import { cache } from 'react'
+import { Database } from '@/types/supabase'
+import { createSampleClassData } from './class-actions'
+import { createSampleAssignmentData } from './assignment-actions'
+
+// Create a cached version of the Supabase client to avoid multiple instantiations
+const getSupabaseClient = cache(() => {
+    const cookieStore = cookies()
+    return createRouteHandlerClient<Database>({
+        cookies: () => cookieStore
+    })
+})
 
 // Server action to get the current session
 export async function getServerSession() {
-    const cookieStore = cookies()
-    const supabase = createRouteHandlerClient({ cookies: () => cookieStore })
-
+    const supabase = getSupabaseClient()
     const { data: { session }, error } = await supabase.auth.getSession()
 
     if (error) {
@@ -42,66 +52,118 @@ export async function getServerUser() {
  * Redirects to login if not authenticated
  */
 export async function requireServerAuth() {
-    const cookieStore = cookies()
-    const supabase = createRouteHandlerClient({ cookies: () => cookieStore })
-    const { data: { session } } = await supabase.auth.getSession()
+    try {
+        console.log("requireServerAuth: Starting function")
+        const supabase = getSupabaseClient()
+        const { data: { session }, error } = await supabase.auth.getSession()
 
-    if (!session) {
-        redirect('/login')
-    }
-
-    console.log("getSession result: Session found")
-    console.log("getCurrentUser result:", session.user.email)
-
-    // Get user data from database
-    const { data: user, error } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', session.user.id)
-        .single()
-
-    // If user not found in the database but authenticated, create a user record
-    if (error && error.code === 'PGRST116') {
-        console.log("User not found in database, creating user record")
-
-        // Create a new user record
-        const { data: newUser, error: createError } = await supabase
-            .from('users')
-            .insert({
-                id: session.user.id,
-                email: session.user.email || '',
-                name: session.user.user_metadata?.full_name ||
-                    session.user.user_metadata?.name ||
-                    session.user.email?.split('@')[0] || 'User',
-                password: '', // Empty password since auth is handled by Supabase Auth
-                role: session.user.user_metadata?.role || 'STUDENT',
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString()
-            })
-            .select()
-            .single()
-
-        if (createError) {
-            console.error('Error creating user:', createError)
+        if (error) {
+            console.error('Error getting session in requireServerAuth:', error)
             redirect('/login')
         }
 
-        return newUser
-    }
+        if (!session) {
+            console.log("requireServerAuth: No session found, redirecting to login")
+            redirect('/login')
+        }
 
-    if (error) {
-        console.error('Error fetching user:', error)
+        console.log("requireServerAuth: Session found for user", session.user.email)
+
+        // Get user data from database
+        const { data: user, error: userError } = await supabase
+            .from('users')
+            .select('*')
+            .eq('id', session.user.id)
+            .single()
+
+        // If user not found in the database but authenticated, create a user record
+        if (userError && userError.code === 'PGRST116') {
+            console.log("User not found in database, creating user record")
+
+            // Extract user metadata for better user creation
+            const fullName = session.user.user_metadata?.full_name ||
+                session.user.user_metadata?.name ||
+                session.user.email?.split('@')[0] || 'User';
+
+            const role = session.user.user_metadata?.role || 'STUDENT';
+
+            console.log("Creating user with data:", {
+                id: session.user.id,
+                email: session.user.email,
+                name: fullName,
+                role: role
+            });
+
+            // Create a new user record
+            const { data: newUser, error: createError } = await supabase
+                .from('users')
+                .insert({
+                    id: session.user.id,
+                    email: session.user.email || '',
+                    name: fullName,
+                    role: role
+                })
+                .select()
+                .single()
+
+            if (createError) {
+                console.error('Error creating user:', createError)
+
+                // Try to get more details about the error
+                if (createError.details) {
+                    console.error('Error details:', createError.details)
+                }
+
+                // Check if the user might already exist (race condition)
+                const { data: existingUser, error: checkError } = await supabase
+                    .from('users')
+                    .select('*')
+                    .eq('id', session.user.id)
+                    .single()
+
+                if (!checkError && existingUser) {
+                    console.log("User exists despite earlier error, returning user", existingUser.id)
+                    return existingUser
+                }
+
+                redirect('/login')
+            }
+
+            console.log("requireServerAuth: Created new user", newUser.id, newUser.email)
+
+            // Create some sample data for the new user if they're a student
+            if (role === 'STUDENT') {
+                try {
+                    // Create sample class enrollments for the new user
+                    await createSampleClassData(newUser.id, role)
+
+                    // Create sample assignments after enrolling in classes
+                    await createSampleAssignmentData(newUser.id, role)
+                } catch (sampleError) {
+                    console.error("Error creating sample data:", sampleError)
+                    // Continue anyway, this is not critical
+                }
+            }
+
+            return newUser
+        }
+
+        if (userError) {
+            console.error('Error fetching user:', userError)
+            redirect('/login')
+        }
+
+        console.log("requireServerAuth: Found existing user", user.id, user.email)
+        return user
+    } catch (error) {
+        console.error('Exception in requireServerAuth:', error)
         redirect('/login')
     }
-
-    return user
 }
 
 // Server action to sign out
 export async function serverSignOut() {
-    const cookieStore = cookies()
-    const supabase = createRouteHandlerClient({ cookies: () => cookieStore })
-
+    const supabase = getSupabaseClient()
     await supabase.auth.signOut()
     redirect('/login')
 } 

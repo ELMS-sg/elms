@@ -1,16 +1,19 @@
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
 import { cookies } from 'next/headers'
 import { redirect } from "next/navigation"
+import { cache } from 'react'
+import { Database } from '@/types/supabase'
 
 // Create a server client that uses cookies for session management
-export async function getSupabaseServerClient() {
+// Using cache to avoid multiple instantiations of the Supabase client
+export const getSupabaseServerClient = cache(() => {
     const cookieStore = cookies()
-    return createRouteHandlerClient({ cookies: () => cookieStore })
-}
+    return createRouteHandlerClient<Database>({ cookies: () => cookieStore })
+})
 
 export async function getSession() {
     try {
-        const supabase = await getSupabaseServerClient()
+        const supabase = getSupabaseServerClient()
         const { data: { session }, error } = await supabase.auth.getSession()
 
         if (error) {

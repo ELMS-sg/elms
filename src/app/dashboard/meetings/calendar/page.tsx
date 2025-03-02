@@ -1,6 +1,7 @@
 import { Metadata } from "next"
 import Link from "next/link"
 import { requireServerAuth } from "@/lib/actions"
+import { getMeetingsForCalendar } from "@/lib/meeting-actions"
 import {
     Calendar as CalendarIcon,
     ChevronLeft,
@@ -18,20 +19,43 @@ export const metadata: Metadata = {
 export const dynamic = 'force-dynamic'
 
 export default async function MeetingCalendarPage() {
-    // Mock data for current month and year
-    const currentMonth = "March"
-    const currentYear = 2024
+    // Get the current month and year
+    const currentDate = new Date()
+    const currentMonth = currentDate.toLocaleString('default', { month: 'long' })
+    const currentYear = currentDate.getFullYear()
 
-    // Mock data for calendar days
-    const calendarDays = Array.from({ length: 35 }, (_, i) => {
-        const day = i - 3 // Start from Feb 27 (3 days before March 1)
-        const isCurrentMonth = day > 0 && day <= 31
-        const date = isCurrentMonth ? day : (day <= 0 ? 28 + day : day - 31)
+    // Get meetings from the database
+    const meetings = await getMeetingsForCalendar()
+
+    // Calculate the first day of the month and the number of days to display before it
+    const firstDayOfMonth = new Date(currentYear, currentDate.getMonth(), 1)
+    const startingDayOfWeek = firstDayOfMonth.getDay() // 0 for Sunday, 1 for Monday, etc.
+
+    // Calculate the number of days in the current month
+    const daysInMonth = new Date(currentYear, currentDate.getMonth() + 1, 0).getDate()
+
+    // Calculate the number of days in the previous month
+    const daysInPrevMonth = new Date(currentYear, currentDate.getMonth(), 0).getDate()
+
+    // Generate calendar days
+    const calendarDays = Array.from({ length: 42 }, (_, i) => {
+        const day = i - startingDayOfWeek + 1 // Adjust to start from the correct day of week
+        const isCurrentMonth = day > 0 && day <= daysInMonth
+        const date = isCurrentMonth
+            ? day
+            : (day <= 0 ? daysInPrevMonth + day : day - daysInMonth)
+
+        // Get events for this day
+        const dayEvents = meetings
+            .filter(meeting => meeting.day === date &&
+                ((day <= 0 && currentDate.getMonth() > 0) ||
+                    (day > daysInMonth && currentDate.getMonth() < 11) ||
+                    isCurrentMonth))
 
         return {
             date,
             isCurrentMonth,
-            events: getMockEventsForDay(day, isCurrentMonth)
+            events: dayEvents
         }
     })
 
@@ -106,7 +130,7 @@ export default async function MeetingCalendarPage() {
                                     {day.events.map((event, eventIndex) => (
                                         <div
                                             key={eventIndex}
-                                            className={`text-xs p-1 rounded truncate ${event.type === 'one-on-one'
+                                            className={`text-xs p-1 rounded truncate ${event.type === 'ONE_ON_ONE'
                                                 ? 'bg-primary-50 text-primary-700 border-l-2 border-primary-500'
                                                 : 'bg-yellow-50 text-yellow-700 border-l-2 border-yellow-500'
                                                 }`}
@@ -162,89 +186,4 @@ export default async function MeetingCalendarPage() {
             </div>
         </div>
     )
-}
-
-// Helper function to generate mock events for a specific day
-function getMockEventsForDay(day: number, isCurrentMonth: boolean) {
-    if (!isCurrentMonth) return []
-
-    const events = []
-
-    // March 1 - IELTS Speaking Practice
-    if (day === 1) {
-        events.push({
-            title: "IELTS Speaking",
-            time: "3:00 PM",
-            type: "one-on-one",
-            isOnline: true
-        })
-    }
-
-    // March 2 - TOEIC Grammar Consultation
-    if (day === 2) {
-        events.push({
-            title: "TOEIC Grammar",
-            time: "2:00 PM",
-            type: "one-on-one",
-            isOnline: false
-        })
-    }
-
-    // March 3 - IELTS Reading Strategies
-    if (day === 3) {
-        events.push({
-            title: "IELTS Reading",
-            time: "6:00 PM",
-            type: "group",
-            isOnline: true
-        })
-    }
-
-    // March 5 - Pronunciation Workshop
-    if (day === 5) {
-        events.push({
-            title: "Pronunciation",
-            time: "5:00 PM",
-            type: "group",
-            isOnline: false
-        })
-    }
-
-    // March 7 - TOEIC Listening
-    if (day === 7) {
-        events.push({
-            title: "TOEIC Listening",
-            time: "4:30 PM",
-            type: "group",
-            isOnline: true
-        })
-    }
-
-    // March 10 - Writing Feedback
-    if (day === 10) {
-        events.push({
-            title: "Writing Feedback",
-            time: "2:00 PM",
-            type: "one-on-one",
-            isOnline: false
-        })
-    }
-
-    // March 15 - Mock IELTS Test
-    if (day === 15) {
-        events.push({
-            title: "Mock IELTS Test",
-            time: "9:00 AM",
-            type: "group",
-            isOnline: false
-        })
-        events.push({
-            title: "Speaking Review",
-            time: "3:00 PM",
-            type: "one-on-one",
-            isOnline: true
-        })
-    }
-
-    return events
 } 

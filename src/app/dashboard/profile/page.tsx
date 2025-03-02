@@ -1,8 +1,5 @@
 import { Metadata } from "next"
 import { requireServerAuth } from "@/lib/actions"
-import { ArrowLeft } from "lucide-react"
-import Link from "next/link"
-import Image from "next/image"
 import ProfileForm from "@/components/profile/ProfileForm"
 import { getUserProfile } from "@/lib/user-actions"
 import { Mail, Calendar, BookOpen } from "lucide-react"
@@ -15,7 +12,6 @@ export const metadata: Metadata = {
 export const dynamic = 'force-dynamic'
 
 export default async function ProfilePage() {
-    // Get authenticated user
     const user = await requireServerAuth()
     const profile = await getUserProfile(user.id)
 
@@ -29,18 +25,40 @@ export default async function ProfilePage() {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Main Content */}
                 <div className="lg:col-span-2 space-y-6">
-                    {/* Profile Information */}
                     <div className="bg-white rounded-lg shadow-card p-6">
                         <h2 className="text-lg font-semibold text-gray-900 mb-4">Profile Information</h2>
                         <ProfileForm user={profile} />
                     </div>
+
+                    {profile.role === "STUDENT" && (
+                        <div className="mt-6">
+                            <h3 className="text-lg font-medium">Enrolled Classes</h3>
+                            {profile.enrollments && profile.enrollments.length > 0 ? (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
+                                    {profile.enrollments.map((enrollment) => (
+                                        <div
+                                            key={enrollment.id || enrollment.class_id}
+                                            className="bg-white p-4 rounded-lg border border-gray-200"
+                                        >
+                                            <h4 className="font-medium">
+                                                {enrollment.class && enrollment.class.name ?
+                                                    enrollment.class.name :
+                                                    "Class information unavailable"}
+                                            </h4>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <p className="text-gray-500 dark:text-gray-400 mt-2">
+                                    Not enrolled in any classes yet.
+                                </p>
+                            )}
+                        </div>
+                    )}
                 </div>
 
-                {/* Sidebar */}
                 <div className="space-y-6">
-                    {/* User Info Card */}
                     <div className="bg-white rounded-lg shadow-card p-6">
                         <div className="flex flex-col items-center">
                             <div className="w-24 h-24 rounded-full bg-primary-100 flex items-center justify-center text-primary-600 text-2xl font-bold mb-4">
@@ -66,7 +84,11 @@ export default async function ProfilePage() {
                                         <p className="font-medium mb-1">Enrolled Classes:</p>
                                         <ul className="list-disc list-inside pl-1 text-sm">
                                             {profile.enrollments.map((enrollment) => (
-                                                <li key={enrollment.id}>{enrollment.class.name}</li>
+                                                <li key={enrollment.id || enrollment.class_id}>
+                                                    {enrollment.class && enrollment.class.name ?
+                                                        enrollment.class.name :
+                                                        "Class information unavailable"}
+                                                </li>
                                             ))}
                                         </ul>
                                     </div>
@@ -88,7 +110,6 @@ export default async function ProfilePage() {
                         </div>
                     </div>
 
-                    {/* Account Settings */}
                     <div className="bg-white rounded-lg shadow-card p-6">
                         <h3 className="text-lg font-semibold text-gray-900 mb-4">Account Settings</h3>
                         <div className="space-y-3">

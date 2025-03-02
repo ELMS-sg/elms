@@ -27,15 +27,17 @@ export default async function DashboardPage({
 }: {
     searchParams: { [key: string]: string | string[] | undefined }
 }) {
-    // In Next.js 15, searchParams is a dynamic API that should be awaited
-    // But since it's passed as a prop, we don't need to await it directly
-    // We just need to handle it properly
+    // In Next.js, searchParams is passed as a prop and is already resolved
+    // We just need to safely access its properties
 
-    // Check for redirect loop - properly handle the searchParams
-    const redirectCount = searchParams && 'redirect_count' in searchParams &&
-        typeof searchParams.redirect_count === 'string'
-        ? parseInt(searchParams.redirect_count)
-        : 0;
+    // Check for redirect loop - safely handle the searchParams
+    let redirectCount = 0;
+    const redirectCountParam = searchParams?.redirect_count;
+    if (redirectCountParam) {
+        redirectCount = typeof redirectCountParam === 'string'
+            ? parseInt(redirectCountParam, 10) || 0
+            : 0;
+    }
 
     console.log(`Dashboard page loaded with redirect_count: ${redirectCount}`)
 
