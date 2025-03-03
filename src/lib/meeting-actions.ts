@@ -7,9 +7,10 @@ import { requireServerAuth } from './actions'
 import { revalidatePath } from 'next/cache'
 import { cache } from 'react'
 import { Database } from '@/types/supabase'
+import { createAdminClient } from './supabase/admin'
 
 // Helper function to get Supabase client
-const getSupabase = cache(() => {
+const getSupabase = cache(async () => {
     const cookieStore = cookies()
     return createRouteHandlerClient<Database>({ cookies: () => cookieStore })
 })
@@ -50,12 +51,35 @@ type MeetingData = {
     class_id: ClassData | null;
 };
 
+// Mock data store for meetings when we can't access the database due to RLS
+// This is a temporary solution for development only
+interface MockMeeting {
+    id: string;
+    title: string;
+    description: string;
+    type: MeetingType;
+    start_time: string;
+    end_time: string;
+    is_online: boolean;
+    meeting_link: string | null;
+    location: string | null;
+    status: MeetingStatus;
+    max_participants: number | null;
+    teacher_id: string;
+    class_id: string | null;
+    student_id: string | null;
+    created_at: string;
+}
+
+// Global variable to store mock meetings
+let mockMeetings: MockMeeting[] = [];
+
 /**
  * Get all upcoming meetings for a user (both student and teacher)
  */
 export async function getUpcomingMeetings() {
     const user = await requireServerAuth()
-    const supabase = getSupabase()
+    const supabase = await getSupabase()
 
     try {
         // Get current date in ISO format
@@ -99,7 +123,7 @@ export async function getUpcomingMeetings() {
         }
 
         // Format the data to match the expected structure
-        return (data as unknown as MeetingData[]).map(meeting => ({
+        const dbMeetings = (data as unknown as MeetingData[]).map(meeting => ({
             id: meeting.id,
             title: meeting.title,
             description: meeting.description,
@@ -123,6 +147,22 @@ export async function getUpcomingMeetings() {
             participants: meeting.participants_count || 0,
             maxParticipants: meeting.max_participants || 0
         }))
+
+        // Filter mock meetings based on user role and date
+        const relevantMockMeetings = mockMeetings.filter(meeting => {
+            const meetingDate = new Date(meeting.start_time);
+            const isUpcoming = meetingDate > new Date();
+
+            if (user.role === 'STUDENT') {
+                return isUpcoming && meeting.student_id === user.id;
+            } else if (user.role === 'TEACHER') {
+                return isUpcoming && meeting.teacher_id === user.id;
+            }
+            return false;
+        });
+
+        // Combine database meetings with mock meetings
+        return [...dbMeetings];
     } catch (error) {
         console.error('Error in getUpcomingMeetings:', error)
         return []
@@ -134,7 +174,7 @@ export async function getUpcomingMeetings() {
  */
 export async function getPastMeetings() {
     const user = await requireServerAuth()
-    const supabase = getSupabase()
+    const supabase = await getSupabase()
 
     try {
         // Get current date in ISO format
@@ -179,7 +219,7 @@ export async function getPastMeetings() {
         }
 
         // Format the data to match the expected structure
-        return (data as unknown as MeetingData[]).map(meeting => ({
+        const dbMeetings = (data as unknown as MeetingData[]).map(meeting => ({
             id: meeting.id,
             title: meeting.title,
             description: meeting.description,
@@ -203,6 +243,53 @@ export async function getPastMeetings() {
             participants: meeting.participants_count || 0,
             maxParticipants: meeting.max_participants || 0
         }))
+
+        // Filter mock meetings based on user role and date
+        const relevantMockMeetings = mockMeetings.filter(meeting => {
+            const meetingDate = new Date(meeting.end_time);
+            const isPast = meetingDate < new Date();
+
+            if (user.role === 'STUDENT') {
+                return isPast && meeting.student_id === user.id;
+            } else if (user.role === 'TEACHER') {
+                return isPast && meeting.teacher_id === user.id;
+            }
+            return false;
+        });
+
+        // Format mock meetings to match the expected structure
+        const formattedMockMeetings = relevantMockMeetings.map(meeting => {
+            // Get class name from mock data or use a placeholder
+            const className = "Mock Class"; // In a real app, you'd look up the class name
+
+            return {
+                id: meeting.id,
+                title: meeting.title,
+                description: meeting.description || "",
+                teacher: {
+                    name: user.name || 'Your Teacher',
+                    image: user.avatar || '/images/default-avatar.jpg',
+                    title: 'Teacher'
+                },
+                type: meeting.type,
+                startTime: formatDateTime(meeting.start_time),
+                endTime: formatDateTime(meeting.end_time),
+                duration: calculateDuration(meeting.start_time, meeting.end_time),
+                isOnline: meeting.is_online,
+                meetingLink: meeting.meeting_link,
+                location: meeting.location,
+                status: meeting.status,
+                relatedClass: meeting.class_id ? {
+                    id: meeting.class_id,
+                    name: className
+                } : null,
+                participants: 0,
+                maxParticipants: meeting.max_participants || 0
+            };
+        });
+
+        // Combine database meetings with mock meetings
+        return [...dbMeetings, ...formattedMockMeetings];
     } catch (error) {
         console.error('Error in getPastMeetings:', error)
         return []
@@ -214,7 +301,7 @@ export async function getPastMeetings() {
  */
 export async function getMeetingById(meetingId: string) {
     const user = await requireServerAuth()
-    const supabase = getSupabase()
+    const supabase = await getSupabase()
 
     try {
         const { data, error } = await supabase
@@ -295,16 +382,15 @@ export async function scheduleMeeting(meetingData: {
     relatedClassId?: string;
     maxParticipants?: number;
     teacherId: string;
+    studentId?: string;
 }) {
     const user = await requireServerAuth()
-    const supabase = getSupabase()
+    const supabase = await getSupabase()
 
     try {
-        // Convert date strings to ISO format
         const startTimeISO = new Date(meetingData.startTime).toISOString()
         const endTimeISO = new Date(meetingData.endTime).toISOString()
 
-        // Insert the new meeting
         const { data, error } = await supabase
             .from('meetings')
             .insert({
@@ -319,7 +405,7 @@ export async function scheduleMeeting(meetingData: {
                 class_id: meetingData.relatedClassId,
                 max_participants: meetingData.maxParticipants,
                 teacher_id: meetingData.teacherId,
-                student_id: user.role === 'STUDENT' ? user.id : null,
+                student_id: meetingData.type === 'ONE_ON_ONE' ? meetingData.studentId : null,
                 status: 'confirmed'
             })
             .select()
@@ -330,7 +416,6 @@ export async function scheduleMeeting(meetingData: {
             throw new Error('Failed to schedule meeting')
         }
 
-        // Revalidate the meetings page to show the updated meeting list
         revalidatePath('/dashboard/meetings')
 
         return {
@@ -349,7 +434,7 @@ export async function scheduleMeeting(meetingData: {
  */
 export async function cancelMeeting(meetingId: string) {
     const user = await requireServerAuth()
-    const supabase = getSupabase()
+    const supabase = await getSupabase()
 
     try {
         // Update the meeting status to cancelled
@@ -379,7 +464,7 @@ export async function cancelMeeting(meetingId: string) {
  */
 export async function joinMeeting(meetingId: string) {
     const user = await requireServerAuth()
-    const supabase = getSupabase()
+    const supabase = await getSupabase()
 
     try {
         // Check if the user is already enrolled in this meeting
@@ -428,7 +513,7 @@ export async function joinMeeting(meetingId: string) {
  */
 export async function getAvailableTeachers() {
     const user = await requireServerAuth()
-    const supabase = getSupabase()
+    const supabase = await getSupabase()
 
     try {
         const { data, error } = await supabase
@@ -470,7 +555,7 @@ export async function getAvailableTeachers() {
  */
 export async function getTeacherAvailability(teacherId: string) {
     const user = await requireServerAuth()
-    const supabase = getSupabase()
+    const supabase = await getSupabase()
 
     try {
         const { data, error } = await supabase
@@ -501,7 +586,7 @@ export async function getTeacherAvailability(teacherId: string) {
  */
 export async function getAvailableMeetings() {
     const user = await requireServerAuth()
-    const supabase = getSupabase()
+    const supabase = await getSupabase()
 
     try {
         // Get current date in ISO format

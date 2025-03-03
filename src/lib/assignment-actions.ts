@@ -29,7 +29,7 @@ const getSupabase = cache(() => {
 export async function createSampleAssignmentData(userId: string, userRole: string) {
     try {
         console.log('createSampleAssignmentData: Starting function for user', userId, userRole)
-        const supabase = getSupabase()
+        const supabase = await getSupabase()
 
         // Only create sample data for students
         if (userRole !== 'STUDENT') {
@@ -136,11 +136,11 @@ export async function getStudentAssignments() {
         const user = await requireServerAuth()
         console.log('getStudentAssignments: User authenticated', user.id, user.role)
 
-        const supabase = getSupabase()
+        const supabase = await getSupabase()
 
         if (user.role !== 'STUDENT') {
-            console.log('getStudentAssignments: User is not a student', user.role)
-            throw new Error('Only students can access this endpoint')
+            console.log('getStudentAssignments: User is not a student, returning empty array')
+            return []
         }
 
         // Get the classes the student is enrolled in
@@ -459,52 +459,149 @@ export async function getStudentAssignments() {
 
 // Get all assignments for a teacher
 export async function getTeacherAssignments() {
-    const user = await requireServerAuth()
-    const supabase = getSupabase()
+    try {
+        console.log('getTeacherAssignments: Starting function')
+        const user = await requireServerAuth()
+        console.log('getTeacherAssignments: User authenticated', user.id, user.role)
 
-    if (user.role !== 'TEACHER') {
-        throw new Error('Only teachers can access this endpoint')
-    }
+        const supabase = await getSupabase()
 
-    // Get assignments created by this teacher
-    const { data: assignments, error: assignmentsError } = await supabase
-        .from('assignments')
-        .select(`
-            *,
-            classes (
-                id,
-                name
-            )
-        `)
-        .eq('teacher_id', user.id)
-        .order('due_date', { ascending: true })
+        if (user.role !== 'TEACHER') {
+            console.log('getTeacherAssignments: User is not a teacher, returning empty array')
+            return []
+        }
 
-    if (assignmentsError) {
-        console.error('Error fetching assignments:', assignmentsError)
+        // Get classes taught by this teacher
+        console.log('getTeacherAssignments: Fetching classes for teacher', user.id)
+        const { data: classes, error: classesError } = await supabase
+            .from('classes')
+            .select('id')
+            .eq('teacher_id', user.id)
+
+        if (classesError) {
+            console.error('Error fetching teacher classes:', classesError)
+            return []
+        }
+
+        if (!classes || classes.length === 0) {
+            console.log('getTeacherAssignments: No classes found for teacher')
+            return []
+        }
+
+        const classIds = classes.map(c => c.id)
+        console.log('getTeacherAssignments: Class IDs', classIds)
+
+        // Get assignments for these classes
+        console.log('getTeacherAssignments: Fetching assignments for classes')
+        const { data: assignments, error: assignmentsError } = await supabase
+            .from('assignments')
+            .select(`
+                *,
+                classes (
+                    id,
+                    name
+                )
+            `)
+            .in('class_id', classIds)
+            .order('due_date', { ascending: true })
+
+        if (assignmentsError) {
+            console.error('Error fetching assignments:', assignmentsError)
+            return []
+        }
+
+        console.log('getTeacherAssignments: Assignments fetched', assignments?.length || 0)
+
+        return assignments.map(assignment => ({
+            ...assignment,
+            course: assignment.classes
+        }))
+    } catch (error) {
+        console.error('Exception in getTeacherAssignments:', error)
         return []
     }
-
-    return assignments.map(assignment => ({
-        ...assignment,
-        course: assignment.classes
-    }))
 }
 
 // Get assignments that need grading
 export async function getAssignmentsToGrade() {
-    const user = await requireServerAuth()
-    const supabase = getSupabase()
+    try {
+        console.log('getAssignmentsToGrade: Starting function')
+        const user = await requireServerAuth()
+        console.log('getAssignmentsToGrade: User authenticated', user.id, user.role)
 
-    if (user.role !== 'TEACHER') {
-        throw new Error('Only teachers can access this endpoint')
-    }
+        const supabase = await getSupabase()
 
-    // Get submissions for assignments created by this teacher
-    const { data, error } = await supabase
-        .from('submissions')
-        .select(`
-            *,
-            assignments!inner (
+        if (user.role !== 'TEACHER') {
+            console.log('getAssignmentsToGrade: User is not a teacher, returning empty array')
+            return []
+        }
+
+        // Get classes taught by this teacher
+        console.log('getAssignmentsToGrade: Fetching classes for teacher', user.id)
+        const { data: classes, error: classesError } = await supabase
+            .from('classes')
+            .select('id')
+            .eq('teacher_id', user.id)
+
+        if (classesError) {
+            console.error('Error fetching teacher classes:', classesError)
+            return []
+        }
+
+        if (!classes || classes.length === 0) {
+            console.log('getAssignmentsToGrade: No classes found for teacher')
+            return []
+        }
+
+        const classIds = classes.map(c => c.id)
+        console.log('getAssignmentsToGrade: Class IDs', classIds)
+
+        // First get assignments for these classes
+        console.log('getAssignmentsToGrade: Fetching assignments for classes')
+        const { data: assignments, error: assignmentsError } = await supabase
+            .from('assignments')
+            .select('id, class_id')
+            .in('class_id', classIds)
+
+        if (assignmentsError) {
+            console.error('Error fetching assignments:', assignmentsError)
+            return []
+        }
+
+        if (!assignments || assignments.length === 0) {
+            console.log('getAssignmentsToGrade: No assignments found for classes')
+            return []
+        }
+
+        const assignmentIds = assignments.map(a => a.id)
+        console.log('getAssignmentsToGrade: Assignment IDs', assignmentIds.length)
+
+        // Now get submissions for these assignments
+        console.log('getAssignmentsToGrade: Fetching submissions for assignments')
+        const { data: submissions, error: submissionsError } = await supabase
+            .from('submissions')
+            .select('*')
+            .in('assignment_id', assignmentIds)
+            .eq('status', 'submitted')
+            .order('submitted_at', { ascending: false })
+
+        if (submissionsError) {
+            console.error('Error fetching submissions:', submissionsError)
+            return []
+        }
+
+        if (!submissions || submissions.length === 0) {
+            console.log('getAssignmentsToGrade: No submissions found for grading')
+            return []
+        }
+
+        console.log('getAssignmentsToGrade: Submissions fetched', submissions.length)
+
+        // Get assignment details for these submissions
+        const submissionAssignmentIds = [...new Set(submissions.map(s => s.assignment_id))]
+        const { data: assignmentDetails, error: assignmentDetailsError } = await supabase
+            .from('assignments')
+            .select(`
                 id,
                 title,
                 description,
@@ -516,68 +613,78 @@ export async function getAssignmentsToGrade() {
                     id,
                     name
                 )
-            )
-        `)
-        .eq('assignments.teacher_id', user.id)
-        .eq('status', 'submitted')
-        .order('submitted_at', { ascending: false })
+            `)
+            .in('id', submissionAssignmentIds)
 
-    if (error) {
-        console.error('Error fetching submissions to grade:', error)
+        if (assignmentDetailsError) {
+            console.error('Error fetching assignment details:', assignmentDetailsError)
+            return []
+        }
+
+        // Create a map of assignment data for easy lookup
+        const assignmentMap = {}
+        if (assignmentDetails) {
+            assignmentDetails.forEach(assignment => {
+                assignmentMap[assignment.id] = assignment
+            })
+        }
+
+        // Get student information separately
+        const studentIds = [...new Set(submissions.map(s => s.student_id))]
+        const { data: students, error: studentsError } = await supabase
+            .from('users')
+            .select('id, name, email')
+            .in('id', studentIds)
+
+        if (studentsError) {
+            console.error('Error fetching students:', studentsError)
+        }
+
+        // Create a map of student data for easy lookup
+        const studentMap = {}
+        if (students) {
+            students.forEach(student => {
+                studentMap[student.id] = student
+            })
+        }
+
+        // Get submission files
+        const submissionIds = submissions.map(s => s.id)
+        const { data: files, error: filesError } = await supabase
+            .from('submission_files')
+            .select('*')
+            .in('submission_id', submissionIds)
+
+        if (filesError) {
+            console.error('Error fetching submission files:', filesError)
+        }
+
+        // Format the data
+        return submissions.map(submission => {
+            const submissionFiles = files?.filter(f => f.submission_id === submission.id) || []
+            const assignment = assignmentMap[submission.assignment_id]
+
+            return {
+                id: submission.id,
+                assignment: assignment ? {
+                    ...assignment,
+                    course: assignment.classes
+                } : { title: 'Unknown Assignment' },
+                student: studentMap[submission.student_id] || { name: 'Unknown Student' },
+                submitted_at: submission.submitted_at,
+                files: submissionFiles
+            }
+        })
+    } catch (error) {
+        console.error('Exception in getAssignmentsToGrade:', error)
         return []
     }
-
-    // Get student information separately
-    const studentIds = [...new Set(data.map(s => s.student_id))];
-    const { data: students, error: studentsError } = await supabase
-        .from('users')
-        .select('id, name, email')
-        .in('id', studentIds);
-
-    if (studentsError) {
-        console.error('Error fetching students:', studentsError);
-    }
-
-    // Create a map of student data for easy lookup
-    const studentMap = {};
-    if (students) {
-        students.forEach(student => {
-            studentMap[student.id] = student;
-        });
-    }
-
-    // Get submission files
-    const submissionIds = data.map(s => s.id)
-    const { data: files, error: filesError } = await supabase
-        .from('submission_files')
-        .select('*')
-        .in('submission_id', submissionIds)
-
-    if (filesError) {
-        console.error('Error fetching submission files:', filesError)
-    }
-
-    // Format the data
-    return data.map(submission => {
-        const submissionFiles = files?.filter(f => f.submission_id === submission.id) || []
-
-        return {
-            id: submission.id,
-            assignment: {
-                ...submission.assignments,
-                course: submission.assignments.classes
-            },
-            student: studentMap[submission.student_id] || { name: 'Unknown Student' },
-            submitted_at: submission.submitted_at,
-            files: submissionFiles
-        }
-    })
 }
 
 // Get a single assignment by ID
 export async function getAssignment(assignmentId: string) {
     const user = await requireServerAuth()
-    const supabase = getSupabase()
+    const supabase = await getSupabase()
 
     // Get the assignment with related data
     const { data, error } = await supabase
@@ -662,7 +769,7 @@ export async function getAssignment(assignmentId: string) {
 // Create a new assignment
 export async function createAssignment(formData: AssignmentFormData) {
     const user = await requireServerAuth()
-    const supabase = getSupabase()
+    const supabase = await getSupabase()
 
     if (user.role !== 'TEACHER') {
         throw new Error('Only teachers can create assignments')
@@ -727,7 +834,7 @@ export async function createAssignment(formData: AssignmentFormData) {
 // Submit an assignment
 export async function submitAssignment(formData: SubmissionFormData) {
     const user = await requireServerAuth()
-    const supabase = getSupabase()
+    const supabase = await getSupabase()
 
     if (user.role !== 'STUDENT') {
         throw new Error('Only students can submit assignments')
@@ -826,7 +933,7 @@ export async function submitAssignment(formData: SubmissionFormData) {
 // Grade a submission
 export async function gradeSubmission(formData: GradingFormData) {
     const user = await requireServerAuth()
-    const supabase = getSupabase()
+    const supabase = await getSupabase()
 
     if (user.role !== 'TEACHER') {
         throw new Error('Only teachers can grade submissions')

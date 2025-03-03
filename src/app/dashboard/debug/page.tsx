@@ -1,186 +1,208 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import axios from 'axios'
 import Link from 'next/link'
 
 export default function DebugPage() {
-    const [loading, setLoading] = useState(true)
-    const [error, setError] = useState<string | null>(null)
-    const [user, setUser] = useState<any>(null)
     const [classes, setClasses] = useState<any[]>([])
-    const [assignments, setAssignments] = useState<any[]>([])
-    const [enrollments, setEnrollments] = useState<any[]>([])
-    const [rpcResult, setRpcResult] = useState<any>(null)
-    const [tableNames, setTableNames] = useState<string[]>([])
+    const [selectedClass, setSelectedClass] = useState<any>(null)
+    const [loading, setLoading] = useState(true)
+    const [error, setError] = useState('')
+    const [success, setSuccess] = useState('')
+    const [addingEnrollments, setAddingEnrollments] = useState(false)
 
+    // Fetch all classes with enrollment counts
     useEffect(() => {
-        const fetchData = async () => {
+        async function fetchClasses() {
             try {
                 setLoading(true)
-                setError(null)
-
-                const supabase = createClientComponentClient()
-
-                // Get current user
-                const { data: { user }, error: userError } = await supabase.auth.getUser()
-
-                if (userError) {
-                    setError(`Error fetching user: ${userError.message}`)
-                    return
-                }
-
-                setUser(user)
-
-                // Get table names
-                const { data: tables, error: tablesError } = await supabase
-                    .from('information_schema.tables')
-                    .select('table_name')
-                    .eq('table_schema', 'public')
-                    .not('table_name', 'ilike', 'pg_%')
-
-                if (tablesError) {
-                    console.error('Error fetching tables:', tablesError)
-                } else {
-                    setTableNames(tables.map(t => t.table_name))
-                }
-
-                // Get classes
-                const { data: classesData, error: classesError } = await supabase
-                    .from('classes')
-                    .select('*')
-
-                if (classesError) {
-                    setError(`Error fetching classes: ${classesError.message}`)
-                    return
-                }
-
-                setClasses(classesData || [])
-
-                // Get assignments
-                const { data: assignmentsData, error: assignmentsError } = await supabase
-                    .from('assignments')
-                    .select('*')
-
-                if (assignmentsError) {
-                    setError(`Error fetching assignments: ${assignmentsError.message}`)
-                    return
-                }
-
-                setAssignments(assignmentsData || [])
-
-                // Get enrollments
-                const { data: enrollmentsData, error: enrollmentsError } = await supabase
-                    .from('class_enrollments')
-                    .select('*')
-
-                if (enrollmentsError) {
-                    setError(`Error fetching enrollments: ${enrollmentsError.message}`)
-                    return
-                }
-
-                setEnrollments(enrollmentsData || [])
-
-                // Test RPC function if classes exist
-                if (classesData && classesData.length > 0) {
-                    const classIds = classesData.map(c => c.id)
-                    const { data: rpcData, error: rpcError } = await supabase
-                        .rpc('get_enrollment_counts_by_class', { class_ids: classIds })
-
-                    if (rpcError) {
-                        console.error('Error calling RPC function:', rpcError)
-                    } else {
-                        setRpcResult(rpcData)
-                    }
-                }
-
+                const response = await axios.get('/api/debug/class-enrollments')
+                setClasses(response.data.classes || [])
+                setError('')
             } catch (err: any) {
-                setError(`Unexpected error: ${err.message}`)
+                console.error('Error fetching classes:', err)
+                setError(err.message || 'Failed to fetch classes')
             } finally {
                 setLoading(false)
             }
         }
 
-        fetchData()
+        fetchClasses()
     }, [])
 
-    const formatJson = (data: any) => {
-        return JSON.stringify(data, null, 2)
+    // Fetch details for a specific class
+    const fetchClassDetails = async (classId: string) => {
+        try {
+            setLoading(true)
+            setSuccess('')
+            const response = await axios.get(`/api/debug/class-enrollments?classId=${classId}`)
+            setSelectedClass(response.data)
+            setError('')
+        } catch (err: any) {
+            console.error('Error fetching class details:', err)
+            setError(err.message || 'Failed to fetch class details')
+            setSelectedClass(null)
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    // Add enrollments to the selected class
+    const addEnrollments = async () => {
+        if (!selectedClass?.class?.id) return
+
+        try {
+            setAddingEnrollments(true)
+            setError('')
+            setSuccess('')
+
+            const response = await axios.post('/api/debug/add-enrollments', {
+                classId: selectedClass.class.id
+            })
+
+            setSuccess(response.data.message)
+
+            // Refresh class details
+            await fetchClassDetails(selectedClass.class.id)
+        } catch (err: any) {
+            console.error('Error adding enrollments:', err)
+            setError(err.response?.data?.error || err.message || 'Failed to add enrollments')
+        } finally {
+            setAddingEnrollments(false)
+        }
     }
 
     return (
-        <div className="container mx-auto p-8">
-            <h1 className="text-2xl font-bold mb-6">Debug Information</h1>
+        <div className="container mx-auto px-4 py-8">
+            <h1 className="text-2xl font-bold mb-6">Debug: Class Enrollments</h1>
 
-            <div className="mb-6">
-                <div className="flex space-x-4 mb-4">
-                    <Link href="/dashboard/debug/schema" className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
-                        View Schema
-                    </Link>
-                    <Link href="/dashboard/debug/tables" className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
-                        View Tables
-                    </Link>
-                    <Link href="/dashboard/debug/fix-classes" className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">
-                        Fix Classes
-                    </Link>
-                </div>
+            <div className="mb-8">
+                <Link
+                    href="/dashboard"
+                    className="text-primary-600 hover:underline"
+                >
+                    Back to Dashboard
+                </Link>
             </div>
 
-            {loading && <p className="text-gray-600">Loading debug information...</p>}
-
             {error && (
-                <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6">
-                    <p><strong>Error:</strong> {error}</p>
+                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
+                    <p>{error}</p>
                 </div>
             )}
 
-            {!loading && !error && (
-                <div className="space-y-8">
-                    <section>
-                        <h2 className="text-xl font-semibold mb-3">Available Tables</h2>
-                        <div className="bg-gray-100 p-4 rounded overflow-x-auto">
-                            <pre>{formatJson(tableNames)}</pre>
-                        </div>
-                    </section>
+            {success && (
+                <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg mb-6">
+                    <p>{success}</p>
+                </div>
+            )}
 
-                    <section>
-                        <h2 className="text-xl font-semibold mb-3">Current User</h2>
-                        <div className="bg-gray-100 p-4 rounded overflow-x-auto">
-                            <pre>{formatJson(user)}</pre>
-                        </div>
-                    </section>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="bg-white rounded-lg shadow-card p-6">
+                    <h2 className="text-lg font-semibold mb-4">Classes</h2>
 
-                    <section>
-                        <h2 className="text-xl font-semibold mb-3">Classes ({classes.length})</h2>
-                        <div className="bg-gray-100 p-4 rounded overflow-x-auto">
-                            <pre>{formatJson(classes)}</pre>
+                    {loading && !classes.length ? (
+                        <div className="animate-pulse space-y-2">
+                            <div className="h-10 bg-gray-200 rounded"></div>
+                            <div className="h-10 bg-gray-200 rounded"></div>
+                            <div className="h-10 bg-gray-200 rounded"></div>
                         </div>
-                    </section>
+                    ) : (
+                        <ul className="space-y-2">
+                            {classes.map((classItem) => (
+                                <li key={classItem.id}>
+                                    <button
+                                        onClick={() => fetchClassDetails(classItem.id)}
+                                        className={`w-full text-left px-3 py-2 rounded-md ${selectedClass?.class?.id === classItem.id
+                                            ? 'bg-primary-50 text-primary-700'
+                                            : 'hover:bg-gray-50'
+                                            }`}
+                                    >
+                                        <span className="font-medium">{classItem.name}</span>
+                                        <span className="ml-2 text-sm text-gray-500">
+                                            ({classItem.studentCount} students)
+                                        </span>
+                                    </button>
+                                </li>
+                            ))}
 
-                    <section>
-                        <h2 className="text-xl font-semibold mb-3">Assignments ({assignments.length})</h2>
-                        <div className="bg-gray-100 p-4 rounded overflow-x-auto">
-                            <pre>{formatJson(assignments)}</pre>
-                        </div>
-                    </section>
-
-                    <section>
-                        <h2 className="text-xl font-semibold mb-3">Enrollments ({enrollments.length})</h2>
-                        <div className="bg-gray-100 p-4 rounded overflow-x-auto">
-                            <pre>{formatJson(enrollments)}</pre>
-                        </div>
-                    </section>
-
-                    {rpcResult && (
-                        <section>
-                            <h2 className="text-xl font-semibold mb-3">RPC Result (get_enrollment_counts_by_class)</h2>
-                            <div className="bg-gray-100 p-4 rounded overflow-x-auto">
-                                <pre>{formatJson(rpcResult)}</pre>
-                            </div>
-                        </section>
+                            {classes.length === 0 && !loading && (
+                                <li className="text-gray-500 p-2">No classes found</li>
+                            )}
+                        </ul>
                     )}
                 </div>
-            )}
+
+                <div className="bg-white rounded-lg shadow-card p-6 md:col-span-2">
+                    <h2 className="text-lg font-semibold mb-4">Class Details</h2>
+
+                    {loading && selectedClass ? (
+                        <div className="animate-pulse space-y-4">
+                            <div className="h-8 bg-gray-200 rounded w-1/3"></div>
+                            <div className="h-24 bg-gray-200 rounded"></div>
+                        </div>
+                    ) : selectedClass ? (
+                        <div>
+                            <div className="mb-6 flex justify-between items-start">
+                                <div>
+                                    <h3 className="text-xl font-medium">{selectedClass.class.name}</h3>
+                                    <p className="text-gray-500">ID: {selectedClass.class.id}</p>
+                                    <p className="text-gray-500">
+                                        {selectedClass.studentCount} student(s) enrolled
+                                    </p>
+                                </div>
+                                <button
+                                    onClick={addEnrollments}
+                                    disabled={addingEnrollments}
+                                    className="btn btn-primary btn-sm"
+                                >
+                                    {addingEnrollments ? 'Adding...' : 'Add Sample Students'}
+                                </button>
+                            </div>
+
+                            <div className="mb-6">
+                                <h4 className="font-medium mb-2">Enrollments</h4>
+                                {selectedClass.enrollments.length > 0 ? (
+                                    <ul className="space-y-1 text-sm">
+                                        {selectedClass.enrollments.map((enrollment: any) => (
+                                            <li key={enrollment.id} className="bg-gray-50 p-2 rounded">
+                                                <p>ID: {enrollment.id}</p>
+                                                <p>Student ID: {enrollment.student_id}</p>
+                                                <p>Created: {new Date(enrollment.created_at).toLocaleString()}</p>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                ) : (
+                                    <p className="text-gray-500">No enrollments found</p>
+                                )}
+                            </div>
+
+                            <div>
+                                <h4 className="font-medium mb-2">Students</h4>
+                                {selectedClass.students.length > 0 ? (
+                                    <ul className="space-y-2">
+                                        {selectedClass.students.map((student: any) => (
+                                            <li key={student.id} className="bg-gray-50 p-3 rounded">
+                                                <p className="font-medium">{student.name}</p>
+                                                <p className="text-gray-600">{student.email}</p>
+                                                <p className="text-gray-500">ID: {student.id}</p>
+                                                <p className="text-gray-500">Role: {student.role}</p>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                ) : (
+                                    <p className="text-gray-500">No student details found</p>
+                                )}
+                            </div>
+                        </div>
+                    ) : (
+                        <p className="text-gray-500">
+                            Select a class to view details
+                        </p>
+                    )}
+                </div>
+            </div>
         </div>
     )
 } 

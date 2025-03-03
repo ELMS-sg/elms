@@ -46,6 +46,22 @@ export default async function ProfilePage() {
                                                     enrollment.class.name :
                                                     "Class information unavailable"}
                                             </h4>
+                                            {enrollment.class && enrollment.class.id && (
+                                                <div className="mt-3 flex flex-wrap gap-2">
+                                                    <a
+                                                        href={`/dashboard/classes/${enrollment.class.id}`}
+                                                        className="text-xs bg-primary-50 text-primary-700 px-2 py-1 rounded-md hover:bg-primary-100 transition-colors"
+                                                    >
+                                                        View Class
+                                                    </a>
+                                                    <a
+                                                        href={`/dashboard/classes/${enrollment.class.id}/assignments`}
+                                                        className="text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded-md hover:bg-blue-100 transition-colors"
+                                                    >
+                                                        Assignments
+                                                    </a>
+                                                </div>
+                                            )}
                                         </div>
                                     ))}
                                 </div>
@@ -54,6 +70,64 @@ export default async function ProfilePage() {
                                     Not enrolled in any classes yet.
                                 </p>
                             )}
+                            <div className="mt-4">
+                                <a
+                                    href="/dashboard/classes"
+                                    className="inline-flex items-center text-sm font-medium text-primary-600 hover:text-primary-700"
+                                >
+                                    Browse available classes
+                                </a>
+                            </div>
+                        </div>
+                    )}
+
+                    {profile.role === "TEACHER" && (
+                        <div className="mt-6">
+                            <h3 className="text-lg font-medium">Teaching Classes</h3>
+                            {profile.classes && profile.classes.length > 0 ? (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
+                                    {profile.classes.map((cls) => (
+                                        <div
+                                            key={cls.id}
+                                            className="bg-white p-4 rounded-lg border border-gray-200"
+                                        >
+                                            <h4 className="font-medium">{cls.name}</h4>
+                                            <div className="mt-3 flex flex-wrap gap-2">
+                                                <a
+                                                    href={`/dashboard/classes/${cls.id}`}
+                                                    className="text-xs bg-primary-50 text-primary-700 px-2 py-1 rounded-md hover:bg-primary-100 transition-colors"
+                                                >
+                                                    View Class
+                                                </a>
+                                                <a
+                                                    href={`/dashboard/classes/${cls.id}/assignments`}
+                                                    className="text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded-md hover:bg-blue-100 transition-colors"
+                                                >
+                                                    Assignments
+                                                </a>
+                                                <a
+                                                    href={`/dashboard/classes/${cls.id}/students`}
+                                                    className="text-xs bg-green-50 text-green-700 px-2 py-1 rounded-md hover:bg-green-100 transition-colors"
+                                                >
+                                                    Students
+                                                </a>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <p className="text-gray-500 dark:text-gray-400 mt-2">
+                                    Not teaching any classes yet.
+                                </p>
+                            )}
+                            <div className="mt-4">
+                                <a
+                                    href="/dashboard/classes/create"
+                                    className="inline-flex items-center text-sm font-medium text-primary-600 hover:text-primary-700"
+                                >
+                                    + Create a new class
+                                </a>
+                            </div>
                         </div>
                     )}
                 </div>

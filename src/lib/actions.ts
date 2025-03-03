@@ -7,26 +7,24 @@ import { cache } from 'react'
 import { Database } from '@/types/supabase'
 import { createSampleClassData } from './class-actions'
 import { createSampleAssignmentData } from './assignment-actions'
-
-// Create a cached version of the Supabase client to avoid multiple instantiations
-const getSupabaseClient = cache(() => {
-    const cookieStore = cookies()
-    return createRouteHandlerClient<Database>({
-        cookies: () => cookieStore
-    })
-})
+import { getSupabase, getSupabaseRouteHandler } from './supabase/client'
 
 // Server action to get the current session
 export async function getServerSession() {
-    const supabase = getSupabaseClient()
-    const { data: { session }, error } = await supabase.auth.getSession()
+    try {
+        const supabase = await getSupabaseRouteHandler()
+        const { data: { session }, error } = await supabase.auth.getSession()
 
-    if (error) {
-        console.error('Error getting session in server action:', error)
+        if (error) {
+            console.error('Error getting session in server action:', error)
+            return null
+        }
+
+        return session
+    } catch (error) {
+        console.error('Exception in getServerSession:', error)
         return null
     }
-
-    return session
 }
 
 export async function getServerUser() {
@@ -54,7 +52,7 @@ export async function getServerUser() {
 export async function requireServerAuth() {
     try {
         console.log("requireServerAuth: Starting function")
-        const supabase = getSupabaseClient()
+        const supabase = await getSupabaseRouteHandler()
         const { data: { session }, error } = await supabase.auth.getSession()
 
         if (error) {
@@ -70,7 +68,8 @@ export async function requireServerAuth() {
         console.log("requireServerAuth: Session found for user", session.user.email)
 
         // Get user data from database
-        const { data: user, error: userError } = await supabase
+        const dbClient = await getSupabase()
+        const { data: user, error: userError } = await dbClient
             .from('users')
             .select('*')
             .eq('id', session.user.id)
@@ -95,7 +94,7 @@ export async function requireServerAuth() {
             });
 
             // Create a new user record
-            const { data: newUser, error: createError } = await supabase
+            const { data: newUser, error: createError } = await dbClient
                 .from('users')
                 .insert({
                     id: session.user.id,
@@ -115,7 +114,7 @@ export async function requireServerAuth() {
                 }
 
                 // Check if the user might already exist (race condition)
-                const { data: existingUser, error: checkError } = await supabase
+                const { data: existingUser, error: checkError } = await dbClient
                     .from('users')
                     .select('*')
                     .eq('id', session.user.id)
@@ -163,7 +162,7 @@ export async function requireServerAuth() {
 
 // Server action to sign out
 export async function serverSignOut() {
-    const supabase = getSupabaseClient()
+    const supabase = await getSupabaseRouteHandler()
     await supabase.auth.signOut()
     redirect('/login')
 } 

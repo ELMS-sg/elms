@@ -13,7 +13,10 @@ import {
     GraduationCap,
     ChevronRight,
     MapPin,
-    Globe
+    Globe,
+    Plus,
+    Settings,
+    BarChart
 } from "lucide-react"
 
 export const metadata: Metadata = {
@@ -26,6 +29,7 @@ export const dynamic = 'force-dynamic'
 export default async function ClassesPage() {
     // Get the authenticated user
     const user = await requireServerAuth()
+    const isTeacher = user.role === 'TEACHER'
 
     // Get classes based on user role
     let enrolledClasses = []
@@ -70,13 +74,39 @@ export default async function ClassesPage() {
     return (
         <div className="container mx-auto px-4 py-8">
             <div className="mb-8">
-                <h1 className="text-2xl font-bold text-gray-900 mb-2">My English Classes</h1>
+                <h1 className="text-2xl font-bold text-gray-900 mb-2">
+                    {isTeacher ? "My Teaching Classes" : "My English Classes"}
+                </h1>
                 <p className="text-gray-600">
-                    {user.role === 'STUDENT'
-                        ? "Manage and track your enrolled IELTS and TOEIC preparation courses"
-                        : "Manage your teaching classes and student enrollments"}
+                    {isTeacher
+                        ? "Manage your teaching classes and student enrollments"
+                        : "Manage and track your enrolled IELTS and TOEIC preparation courses"}
                 </p>
             </div>
+
+            {/* Teacher-specific Quick Actions */}
+            {isTeacher && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                    <Link href="/dashboard/classes/manage-students" className="bg-white rounded-lg shadow-card p-4 flex items-center hover:shadow-card-hover transition-shadow duration-300">
+                        <div className="p-3 rounded-full bg-amber-50 text-amber-600 mr-3">
+                            <Users className="h-5 w-5" />
+                        </div>
+                        <div>
+                            <h3 className="font-medium text-gray-900">Manage Students</h3>
+                            <p className="text-sm text-gray-500">View and manage enrollments</p>
+                        </div>
+                    </Link>
+                    <Link href="/dashboard/classes/analytics" className="bg-white rounded-lg shadow-card p-4 flex items-center hover:shadow-card-hover transition-shadow duration-300">
+                        <div className="p-3 rounded-full bg-green-50 text-green-600 mr-3">
+                            <BarChart className="h-5 w-5" />
+                        </div>
+                        <div>
+                            <h3 className="font-medium text-gray-900">Class Analytics</h3>
+                            <p className="text-sm text-gray-500">View performance data</p>
+                        </div>
+                    </Link>
+                </div>
+            )}
 
             {/* Search and Filter */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
@@ -213,7 +243,7 @@ export default async function ClassesPage() {
                 )}
             </div>
 
-            {/* Explore More Classes */}
+            {/* Explore More Classes - Only for students */}
             {user.role === 'STUDENT' && enrolledClasses.length > 0 && (
                 <div className="mt-12 bg-white rounded-lg shadow-card p-6 text-center">
                     <div className="mb-4">
@@ -229,6 +259,44 @@ export default async function ClassesPage() {
                         Explore Course Catalog
                         <ChevronRight className="ml-2 h-4 w-4" />
                     </Link>
+                </div>
+            )}
+
+            {/* Teacher-specific Analytics Section */}
+            {isTeacher && enrolledClasses.length > 0 && (
+                <div className="mt-12 bg-white rounded-lg shadow-card p-6">
+                    <h2 className="text-xl font-bold text-gray-900 mb-4">Teaching Analytics</h2>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div className="bg-gray-50 rounded-lg p-4 flex items-center">
+                            <div className="w-12 h-12 rounded-full bg-primary-100 flex items-center justify-center mr-4">
+                                <Users className="w-6 h-6 text-primary-600" />
+                            </div>
+                            <div>
+                                <p className="text-sm text-gray-500">Total Students</p>
+                                <p className="text-2xl font-bold text-gray-900">
+                                    {enrolledClasses.reduce((total, cls) => total + cls.totalStudents, 0)}
+                                </p>
+                            </div>
+                        </div>
+                        <div className="bg-gray-50 rounded-lg p-4 flex items-center">
+                            <div className="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center mr-4">
+                                <Clock className="w-6 h-6 text-amber-600" />
+                            </div>
+                            <div>
+                                <p className="text-sm text-gray-500">Teaching Hours</p>
+                                <p className="text-2xl font-bold text-gray-900">{enrolledClasses.length * 24}</p>
+                            </div>
+                        </div>
+                        <div className="bg-gray-50 rounded-lg p-4 flex items-center">
+                            <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center mr-4">
+                                <BarChart className="w-6 h-6 text-green-600" />
+                            </div>
+                            <div>
+                                <p className="text-sm text-gray-500">Average Attendance</p>
+                                <p className="text-2xl font-bold text-gray-900">92%</p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             )}
 

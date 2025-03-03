@@ -32,11 +32,13 @@ export default async function DashboardPage({
 
     // Check for redirect loop - safely handle the searchParams
     let redirectCount = 0;
-    const redirectCountParam = searchParams?.redirect_count;
-    if (redirectCountParam) {
-        redirectCount = typeof redirectCountParam === 'string'
-            ? parseInt(redirectCountParam, 10) || 0
-            : 0;
+    if (searchParams && typeof searchParams.redirect_count !== 'undefined') {
+        const redirectCountParam = searchParams.redirect_count;
+        if (typeof redirectCountParam === 'string') {
+            redirectCount = parseInt(redirectCountParam, 10) || 0;
+        } else if (Array.isArray(redirectCountParam) && redirectCountParam.length > 0) {
+            redirectCount = parseInt(redirectCountParam[0], 10) || 0;
+        }
     }
 
     console.log(`Dashboard page loaded with redirect_count: ${redirectCount}`)
@@ -48,9 +50,35 @@ export default async function DashboardPage({
 
     // Use requireAuth which handles the redirect if not authenticated
     const user = await requireServerAuth()
+    const isTeacher = user.role === 'TEACHER'
 
-    // Mock data for dashboard statistics
-    const stats = [
+    // Mock data for dashboard statistics - different for teachers and students
+    const stats = isTeacher ? [
+        {
+            label: "Classes Teaching",
+            value: "4",
+            icon: <BookOpen className="w-5 h-5 text-primary-600" />,
+            color: "bg-primary-50 text-primary-700",
+        },
+        {
+            label: "Assignments to Grade",
+            value: "7",
+            icon: <FileText className="w-5 h-5 text-accent-yellow" />,
+            color: "bg-yellow-50 text-yellow-700",
+        },
+        {
+            label: "Scheduled Meetings",
+            value: "5",
+            icon: <Calendar className="w-5 h-5 text-accent-green" />,
+            color: "bg-green-50 text-green-700",
+        },
+        {
+            label: "Total Students",
+            value: "42",
+            icon: <Users className="w-5 h-5 text-accent-red" />,
+            color: "bg-red-50 text-red-700",
+        },
+    ] : [
         {
             label: "Courses Enrolled",
             value: "4",
@@ -77,8 +105,27 @@ export default async function DashboardPage({
         },
     ]
 
-    // Mock data for upcoming events
-    const upcomingEvents = [
+    // Mock data for upcoming events - different for teachers and students
+    const upcomingEvents = isTeacher ? [
+        {
+            title: "Advanced JavaScript Lecture",
+            date: "Today, 2:00 PM",
+            type: "Teaching",
+            icon: <GraduationCap className="w-4 h-4" />,
+        },
+        {
+            title: "Grade Project Submissions",
+            date: "Tomorrow, 11:59 PM",
+            type: "Grading",
+            icon: <FileText className="w-4 h-4" />,
+        },
+        {
+            title: "Faculty Meeting",
+            date: "Wed, 4:00 PM",
+            type: "Meeting",
+            icon: <Users className="w-4 h-4" />,
+        },
+    ] : [
         {
             title: "Advanced JavaScript Lecture",
             date: "Today, 2:00 PM",
@@ -99,8 +146,24 @@ export default async function DashboardPage({
         },
     ]
 
-    // Mock data for recent activity
-    const recentActivity = [
+    // Mock data for recent activity - different for teachers and students
+    const recentActivity = isTeacher ? [
+        {
+            title: "Graded Quiz: React Fundamentals",
+            time: "2 hours ago",
+            icon: <CheckCircle className="w-4 h-4 text-accent-green" />,
+        },
+        {
+            title: "Created Assignment: Advanced CSS Techniques",
+            time: "Yesterday",
+            icon: <FileText className="w-4 h-4 text-primary-600" />,
+        },
+        {
+            title: "Added Class: Web Development Fundamentals",
+            time: "2 days ago",
+            icon: <Users className="w-4 h-4 text-accent-yellow" />,
+        },
+    ] : [
         {
             title: "Completed Quiz: React Fundamentals",
             time: "2 hours ago",
@@ -182,12 +245,19 @@ export default async function DashboardPage({
                                 </div>
                             </div>
                             <div className="border-t border-gray-200 pt-4">
-                                <div className="flex justify-between items-center mb-2">
-                                    <span className="text-sm font-medium text-gray-500">Course Completion</span>
-                                    <span className="text-sm font-medium text-gray-900">68%</span>
-                                </div>
+                                {isTeacher ? (
+                                    <div className="flex justify-between items-center mb-2">
+                                        <span className="text-sm font-medium text-gray-500">Classes in Progress</span>
+                                        <span className="text-sm font-medium text-gray-900">4/5</span>
+                                    </div>
+                                ) : (
+                                    <div className="flex justify-between items-center mb-2">
+                                        <span className="text-sm font-medium text-gray-500">Course Completion</span>
+                                        <span className="text-sm font-medium text-gray-900">68%</span>
+                                    </div>
+                                )}
                                 <div className="w-full bg-gray-200 rounded-full h-2">
-                                    <div className="bg-primary-600 h-2 rounded-full" style={{ width: "68%" }}></div>
+                                    <div className="bg-primary-600 h-2 rounded-full" style={{ width: isTeacher ? "80%" : "68%" }}></div>
                                 </div>
                             </div>
                         </div>
@@ -259,8 +329,12 @@ export default async function DashboardPage({
                                         <BookOpen className="w-6 h-6" />
                                     </div>
                                     <div className="ml-4">
-                                        <h3 className="text-lg font-medium text-gray-900 group-hover:text-primary-600 transition-colors duration-200">My Classes</h3>
-                                        <p className="text-sm text-gray-500">View your enrolled courses</p>
+                                        <h3 className="text-lg font-medium text-gray-900 group-hover:text-primary-600 transition-colors duration-200">
+                                            {isTeacher ? "My Teaching Classes" : "My Classes"}
+                                        </h3>
+                                        <p className="text-sm text-gray-500">
+                                            {isTeacher ? "Manage your teaching schedule" : "View your enrolled courses"}
+                                        </p>
                                     </div>
                                 </div>
                             </div>
@@ -276,7 +350,9 @@ export default async function DashboardPage({
                                     </div>
                                     <div className="ml-4">
                                         <h3 className="text-lg font-medium text-gray-900 group-hover:text-primary-600 transition-colors duration-200">Assignments</h3>
-                                        <p className="text-sm text-gray-500">Check your pending tasks</p>
+                                        <p className="text-sm text-gray-500">
+                                            {isTeacher ? "Create and grade assignments" : "Check your pending tasks"}
+                                        </p>
                                     </div>
                                 </div>
                             </div>
@@ -292,7 +368,9 @@ export default async function DashboardPage({
                                     </div>
                                     <div className="ml-4">
                                         <h3 className="text-lg font-medium text-gray-900 group-hover:text-primary-600 transition-colors duration-200">Meetings</h3>
-                                        <p className="text-sm text-gray-500">Schedule and join meetings</p>
+                                        <p className="text-sm text-gray-500">
+                                            {isTeacher ? "Create and manage Zoom meetings" : "Schedule and join meetings"}
+                                        </p>
                                     </div>
                                 </div>
                             </div>

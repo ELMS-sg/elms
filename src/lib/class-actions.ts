@@ -18,22 +18,27 @@ const getSupabase = cache(() => {
  * This is used to ensure new users have data to see
  */
 export async function createSampleClassData(userId: string, userRole: string) {
+    const supabase = await getSupabase()
+
     try {
         console.log('createSampleClassData: Starting function for user', userId, userRole)
-        const supabase = getSupabase()
 
         // Only create sample data for students
         if (userRole !== 'STUDENT') {
-            console.log('createSampleClassData: User is not a student, skipping')
+            console.log('createSampleClassData: Skipping for non-student user')
             return
         }
 
         // Check if user already has enrollments
         const { data: existingEnrollments, error: checkError } = await supabase
             .from('class_enrollments')
-            .select('id')
+            .select('*')
             .eq('student_id', userId)
-            .limit(1)
+
+        if (checkError) {
+            console.error('Error checking existing enrollments:', checkError)
+            return
+        }
 
         if (!checkError && existingEnrollments && existingEnrollments.length > 0) {
             console.log('createSampleClassData: User already has enrollments, skipping')
@@ -145,16 +150,16 @@ export async function createSampleClassData(userId: string, userRole: string) {
  * Get all classes for a student (classes they are enrolled in)
  */
 export async function getStudentClasses() {
+    const user = await requireServerAuth()
+    const supabase = await getSupabase()
+
     try {
         console.log('getStudentClasses: Starting function')
-        const user = await requireServerAuth()
         console.log('getStudentClasses: User authenticated', user.id, user.role)
 
-        const supabase = getSupabase()
-
         if (user.role !== 'STUDENT') {
-            console.log('getStudentClasses: User is not a student', user.role)
-            throw new Error('Only students can access this endpoint')
+            console.log('getStudentClasses: User is not a student, returning empty array')
+            return []
         }
 
         // Get the classes the student is enrolled in
@@ -312,84 +317,90 @@ export async function getStudentClasses() {
  */
 export async function getTeacherClasses() {
     const user = await requireServerAuth()
-    const supabase = getSupabase()
+    const supabase = await getSupabase()
 
     if (user.role !== 'TEACHER') {
-        throw new Error('Only teachers can access this endpoint')
-    }
-
-    // Get the classes the teacher is teaching
-    const { data: classes, error: classesError } = await supabase
-        .from('classes')
-        .select(`
-            id,
-            name,
-            description,
-            start_date,
-            end_date
-        `)
-        .eq('teacher_id', user.id)
-
-    if (classesError) {
-        console.error('Error fetching classes:', classesError)
+        console.log('getTeacherClasses: User is not a teacher, returning empty array')
         return []
     }
 
-    // Get the number of students enrolled in each class
-    const classIds = classes.map(c => c.id)
+    try {
+        // Get the classes the teacher is teaching
+        const { data: classes, error: classesError } = await supabase
+            .from('classes')
+            .select(`
+                id,
+                name,
+                description,
+                start_date,
+                end_date
+            `)
+            .eq('teacher_id', user.id)
 
-    // Use a raw SQL query to get the enrollment counts
-    const { data: enrollmentCounts, error: enrollmentError } = await supabase
-        .rpc('get_enrollment_counts_by_class', { class_ids: classIds })
-        .select()
-
-    // If the RPC function doesn't exist, we'll just use an empty object for counts
-    let studentCountMap = {}
-
-    if (enrollmentError) {
-        console.error('Error fetching enrollment counts:', enrollmentError)
-        // Fallback: Just count enrollments manually without grouping
-        const { data: allEnrollments } = await supabase
-            .from('class_enrollments')
-            .select('class_id')
-            .in('class_id', classIds)
-
-        if (allEnrollments) {
-            // Count manually
-            studentCountMap = allEnrollments.reduce((acc, enrollment) => {
-                acc[enrollment.class_id] = (acc[enrollment.class_id] || 0) + 1
-                return acc
-            }, {})
+        if (classesError) {
+            console.error('Error fetching classes:', classesError)
+            return []
         }
-    } else if (enrollmentCounts) {
-        enrollmentCounts.forEach(count => {
-            studentCountMap[count.class_id] = count.count
-        })
-    }
 
-    return classes.map(cls => ({
-        id: cls.id,
-        name: cls.name,
-        description: cls.description,
-        teacher: user.name,
-        teacherId: user.id,
-        startDate: new Date(cls.start_date).toLocaleDateString('en-US', {
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric'
-        }),
-        endDate: new Date(cls.end_date).toLocaleDateString('en-US', {
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric'
-        }),
-        level: "Intermediate",
-        learningMethod: "Hybrid",
-        location: "Main Campus",
-        totalStudents: studentCountMap[cls.id] || 0,
-        image: "/images/ielts-academic.jpg",
-        tags: ["IELTS", "Academic"],
-    }))
+        // Get the number of students enrolled in each class
+        const classIds = classes.map(c => c.id)
+
+        // Use a raw SQL query to get the enrollment counts
+        const { data: enrollmentCounts, error: enrollmentError } = await supabase
+            .rpc('get_enrollment_counts_by_class', { class_ids: classIds })
+            .select()
+
+        // If the RPC function doesn't exist, we'll just use an empty object for counts
+        let studentCountMap = {}
+
+        if (enrollmentError) {
+            console.error('Error fetching enrollment counts:', enrollmentError)
+            // Fallback: Just count enrollments manually without grouping
+            const { data: allEnrollments } = await supabase
+                .from('class_enrollments')
+                .select('class_id')
+                .in('class_id', classIds)
+
+            if (allEnrollments) {
+                // Count manually
+                studentCountMap = allEnrollments.reduce((acc, enrollment) => {
+                    acc[enrollment.class_id] = (acc[enrollment.class_id] || 0) + 1
+                    return acc
+                }, {})
+            }
+        } else if (enrollmentCounts) {
+            enrollmentCounts.forEach(count => {
+                studentCountMap[count.class_id] = count.count
+            })
+        }
+
+        return classes.map(cls => ({
+            id: cls.id,
+            name: cls.name,
+            description: cls.description,
+            teacher: user.name,
+            teacherId: user.id,
+            startDate: new Date(cls.start_date).toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            }),
+            endDate: new Date(cls.end_date).toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            }),
+            level: "Intermediate",
+            learningMethod: "Hybrid",
+            location: "Main Campus",
+            totalStudents: studentCountMap[cls.id] || 0,
+            image: "/images/ielts-academic.jpg",
+            tags: ["IELTS", "Academic"],
+        }))
+    } catch (error) {
+        console.error('Exception in getTeacherClasses:', error)
+        return []
+    }
 }
 
 /**
@@ -397,7 +408,7 @@ export async function getTeacherClasses() {
  */
 export async function getClassById(classId: string) {
     const user = await requireServerAuth()
-    const supabase = getSupabase()
+    const supabase = await getSupabase()
 
     // Get the class details
     const { data: classData, error: classError } = await supabase
@@ -502,7 +513,7 @@ export async function getClassById(classId: string) {
  */
 export async function getAvailableClasses() {
     const user = await requireServerAuth()
-    const supabase = getSupabase()
+    const supabase = await getSupabase()
 
     // Get all classes
     const { data: classes, error: classesError } = await supabase
@@ -576,7 +587,7 @@ export async function getAvailableClasses() {
  */
 export async function enrollInClass(classId: string) {
     const user = await requireServerAuth()
-    const supabase = getSupabase()
+    const supabase = await getSupabase()
 
     if (user.role !== 'STUDENT') {
         throw new Error('Only students can enroll in classes')
@@ -624,7 +635,7 @@ export async function enrollInClass(classId: string) {
  */
 export async function unenrollFromClass(classId: string) {
     const user = await requireServerAuth()
-    const supabase = getSupabase()
+    const supabase = await getSupabase()
 
     if (user.role !== 'STUDENT') {
         throw new Error('Only students can unenroll from classes')

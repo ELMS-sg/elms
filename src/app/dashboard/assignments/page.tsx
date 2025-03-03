@@ -14,6 +14,7 @@ import {
     BookOpen,
     BarChart,
     CheckCircle,
+    FileText,
 } from "lucide-react"
 import { format, isPast } from "date-fns"
 
@@ -148,13 +149,47 @@ export default async function AssignmentsPage() {
     return (
         <div className="container mx-auto px-4 py-8">
             <div className="mb-8">
-                <h1 className="text-2xl font-bold text-gray-900 mb-2">My Assignments</h1>
+                <h1 className="text-2xl font-bold text-gray-900 mb-2">
+                    {isTeacher ? "Assignments Management" : "My Assignments"}
+                </h1>
                 <p className="text-gray-600">
                     {isTeacher
                         ? "Create, manage, and grade student assignments"
                         : "View and submit your course assignments and check feedback"}
                 </p>
             </div>
+
+            {isTeacher && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                    <Link href="/dashboard/assignments/create" className="bg-white rounded-lg shadow-card p-4 flex items-center hover:shadow-card-hover transition-shadow duration-300">
+                        <div className="p-3 rounded-full bg-primary-50 text-primary-600 mr-3">
+                            <Plus className="h-5 w-5" />
+                        </div>
+                        <div>
+                            <h3 className="font-medium text-gray-900">Create Assignment</h3>
+                            <p className="text-sm text-gray-500">Add a new assignment</p>
+                        </div>
+                    </Link>
+                    <Link href="/dashboard/assignments/to-grade" className="bg-white rounded-lg shadow-card p-4 flex items-center hover:shadow-card-hover transition-shadow duration-300">
+                        <div className="p-3 rounded-full bg-amber-50 text-amber-600 mr-3">
+                            <FileText className="h-5 w-5" />
+                        </div>
+                        <div>
+                            <h3 className="font-medium text-gray-900">Grade Submissions</h3>
+                            <p className="text-sm text-gray-500">Review student work</p>
+                        </div>
+                    </Link>
+                    <Link href="/dashboard/assignments/analytics" className="bg-white rounded-lg shadow-card p-4 flex items-center hover:shadow-card-hover transition-shadow duration-300">
+                        <div className="p-3 rounded-full bg-green-50 text-green-600 mr-3">
+                            <BarChart className="h-5 w-5" />
+                        </div>
+                        <div>
+                            <h3 className="font-medium text-gray-900">Assignment Analytics</h3>
+                            <p className="text-sm text-gray-500">View performance data</p>
+                        </div>
+                    </Link>
+                </div>
+            )}
 
             {/* Search and Filter */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
@@ -491,7 +526,43 @@ export default async function AssignmentsPage() {
                 </div>
             )}
 
-            {/* Assignment Statistics */}
+            {/* Teacher-specific Analytics Section */}
+            {isTeacher && (
+                <div className="bg-white rounded-lg shadow-card p-6">
+                    <h2 className="text-xl font-bold text-gray-900 mb-4">Assignment Analytics</h2>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div className="bg-gray-50 rounded-lg p-4 flex items-center">
+                            <div className="w-12 h-12 rounded-full bg-primary-100 flex items-center justify-center mr-4">
+                                <CheckCircle className="w-6 h-6 text-primary-600" />
+                            </div>
+                            <div>
+                                <p className="text-sm text-gray-500">Submission Rate</p>
+                                <p className="text-2xl font-bold text-gray-900">78%</p>
+                            </div>
+                        </div>
+                        <div className="bg-gray-50 rounded-lg p-4 flex items-center">
+                            <div className="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center mr-4">
+                                <Clock className="w-6 h-6 text-amber-600" />
+                            </div>
+                            <div>
+                                <p className="text-sm text-gray-500">Average Grade Time</p>
+                                <p className="text-2xl font-bold text-gray-900">1.5 days</p>
+                            </div>
+                        </div>
+                        <div className="bg-gray-50 rounded-lg p-4 flex items-center">
+                            <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center mr-4">
+                                <BarChart className="w-6 h-6 text-green-600" />
+                            </div>
+                            <div>
+                                <p className="text-sm text-gray-500">Average Score</p>
+                                <p className="text-2xl font-bold text-gray-900">82%</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Assignment Statistics for students */}
             {!isTeacher && (
                 <div className="bg-white rounded-lg shadow-card p-6">
                     <h2 className="text-xl font-bold text-gray-900 mb-4">Assignment Statistics</h2>
