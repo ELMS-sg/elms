@@ -672,7 +672,6 @@ export async function getMeetingsForCalendar() {
     const user = await requireServerAuth()
 
     try {
-        // Get all meetings
         const upcomingMeetings = await getUpcomingMeetings()
         const pastMeetings = await getPastMeetings()
         const availableMeetings = await getAvailableMeetings()

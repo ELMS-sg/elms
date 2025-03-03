@@ -18,24 +18,70 @@ export const metadata: Metadata = {
 
 export const dynamic = 'force-dynamic'
 
-export default async function MeetingCalendarPage() {
-    // Get the current month and year
+// Helper function to safely parse date params
+function getDateFromParams(month: string | undefined, year: string | undefined): Date {
     const currentDate = new Date()
-    const currentMonth = currentDate.toLocaleString('default', { month: 'long' })
-    const currentYear = currentDate.getFullYear()
+
+    try {
+        // Validate month
+        const monthNum = month ? parseInt(month) : currentDate.getMonth() + 1
+        if (isNaN(monthNum) || monthNum < 1 || monthNum > 12) {
+            return currentDate
+        }
+
+        // Validate year
+        const yearNum = year ? parseInt(year) : currentDate.getFullYear()
+        if (isNaN(yearNum) || yearNum < 1900 || yearNum > 2100) {
+            return currentDate
+        }
+
+        // Create and validate the date
+        const date = new Date(yearNum, monthNum - 1)
+        return isNaN(date.getTime()) ? currentDate : date
+    } catch (error) {
+        console.error('Error parsing date params:', error)
+        return currentDate
+    }
+}
+
+export default async function MeetingCalendarPage({
+    searchParams,
+}: {
+    searchParams: { [key: string]: string | string[] | undefined }
+}) {
+    // Get the display date using the helper function with individual params
+    const month = Array.isArray(searchParams.month) ? searchParams.month[0] : searchParams.month
+    const year = Array.isArray(searchParams.year) ? searchParams.year[0] : searchParams.year
+    const displayDate = getDateFromParams(month, year)
+    const currentDate = new Date()
+
+    const currentMonth = displayDate.toLocaleString('default', { month: 'long' })
+    const currentYear = displayDate.getFullYear()
 
     // Get meetings from the database
     const meetings = await getMeetingsForCalendar()
+    console.log('Fetched meetings:', meetings) // Debug log
 
     // Calculate the first day of the month and the number of days to display before it
-    const firstDayOfMonth = new Date(currentYear, currentDate.getMonth(), 1)
+    const firstDayOfMonth = new Date(currentYear, displayDate.getMonth(), 1)
     const startingDayOfWeek = firstDayOfMonth.getDay() // 0 for Sunday, 1 for Monday, etc.
 
     // Calculate the number of days in the current month
-    const daysInMonth = new Date(currentYear, currentDate.getMonth() + 1, 0).getDate()
+    const daysInMonth = new Date(currentYear, displayDate.getMonth() + 1, 0).getDate()
 
     // Calculate the number of days in the previous month
-    const daysInPrevMonth = new Date(currentYear, currentDate.getMonth(), 0).getDate()
+    const daysInPrevMonth = new Date(currentYear, displayDate.getMonth(), 0).getDate()
+
+    // Calculate next and previous month/year
+    const prevDate = new Date(displayDate)
+    prevDate.setMonth(prevDate.getMonth() - 1)
+    const prevMonth = prevDate.getMonth() + 1
+    const prevYear = prevDate.getFullYear()
+
+    const nextDate = new Date(displayDate)
+    nextDate.setMonth(nextDate.getMonth() + 1)
+    const nextMonth = nextDate.getMonth() + 1
+    const nextYear = nextDate.getFullYear()
 
     // Generate calendar days
     const calendarDays = Array.from({ length: 42 }, (_, i) => {
@@ -46,16 +92,22 @@ export default async function MeetingCalendarPage() {
             : (day <= 0 ? daysInPrevMonth + day : day - daysInMonth)
 
         // Get events for this day
-        const dayEvents = meetings
-            .filter(meeting => meeting.day === date &&
-                ((day <= 0 && currentDate.getMonth() > 0) ||
-                    (day > daysInMonth && currentDate.getMonth() < 11) ||
-                    isCurrentMonth))
+        const dayEvents = meetings.filter(meeting => {
+            // For the current implementation, we only need to match the day
+            // since meetings are already filtered by month in the backend
+            return meeting.day === date && isCurrentMonth
+        })
+
+        console.log(`Day ${date}, isCurrentMonth: ${isCurrentMonth}, events:`, dayEvents) // Debug log
 
         return {
             date,
             isCurrentMonth,
-            events: dayEvents
+            events: dayEvents,
+            isToday: isCurrentMonth &&
+                currentDate.getDate() === date &&
+                currentDate.getMonth() === displayDate.getMonth() &&
+                currentDate.getFullYear() === displayDate.getFullYear()
         }
     })
 
@@ -87,12 +139,18 @@ export default async function MeetingCalendarPage() {
                         <h2 className="text-lg font-semibold text-gray-900">{currentMonth} {currentYear}</h2>
                     </div>
                     <div className="flex space-x-2">
-                        <button className="p-2 rounded-md hover:bg-gray-100">
+                        <Link
+                            href={`/dashboard/meetings/calendar?month=${prevMonth}&year=${prevYear}`}
+                            className="p-2 rounded-md hover:bg-gray-100"
+                        >
                             <ChevronLeft className="w-5 h-5 text-gray-600" />
-                        </button>
-                        <button className="p-2 rounded-md hover:bg-gray-100">
+                        </Link>
+                        <Link
+                            href={`/dashboard/meetings/calendar?month=${nextMonth}&year=${nextYear}`}
+                            className="p-2 rounded-md hover:bg-gray-100"
+                        >
                             <ChevronRight className="w-5 h-5 text-gray-600" />
-                        </button>
+                        </Link>
                     </div>
                 </div>
 
@@ -112,12 +170,16 @@ export default async function MeetingCalendarPage() {
                         {calendarDays.map((day, index) => (
                             <div
                                 key={index}
-                                className={`min-h-[120px] p-2 border-b border-r border-gray-200 ${!day.isCurrentMonth ? 'bg-gray-50 text-gray-400' : ''
-                                    } ${index % 7 === 6 ? 'border-r-0' : ''}`}
+                                className={`min-h-[120px] p-2 border-b border-r border-gray-200 
+                                    ${!day.isCurrentMonth ? 'bg-gray-50 text-gray-400' : ''} 
+                                    ${index % 7 === 6 ? 'border-r-0' : ''}
+                                    ${day.isToday ? 'bg-primary-50' : ''}`}
                             >
                                 <div className="flex justify-between items-start">
-                                    <span className={`text-sm font-medium ${day.isCurrentMonth ? 'text-gray-900' : 'text-gray-400'
-                                        }`}>
+                                    <span className={`text-sm font-medium 
+                                        ${day.isCurrentMonth ? 'text-gray-900' : 'text-gray-400'}
+                                        ${day.isToday ? 'text-primary-700' : ''}`}
+                                    >
                                         {day.date}
                                     </span>
                                     {day.events.length > 0 && (
@@ -128,11 +190,13 @@ export default async function MeetingCalendarPage() {
                                 </div>
                                 <div className="mt-1 space-y-1">
                                     {day.events.map((event, eventIndex) => (
-                                        <div
+                                        <Link
                                             key={eventIndex}
-                                            className={`text-xs p-1 rounded truncate ${event.type === 'ONE_ON_ONE'
-                                                ? 'bg-primary-50 text-primary-700 border-l-2 border-primary-500'
-                                                : 'bg-yellow-50 text-yellow-700 border-l-2 border-yellow-500'
+                                            href={`/dashboard/meetings/${event.id}`}
+                                            className={`text-xs p-1.5 rounded truncate block hover:opacity-75 transition-opacity
+                                                ${event.type === 'ONE_ON_ONE'
+                                                    ? 'bg-primary-50 text-primary-700 border-l-2 border-primary-500'
+                                                    : 'bg-yellow-50 text-yellow-700 border-l-2 border-yellow-500'
                                                 }`}
                                         >
                                             <div className="flex items-center">
@@ -141,9 +205,10 @@ export default async function MeetingCalendarPage() {
                                                 ) : (
                                                     <MapPin className="w-3 h-3 mr-1 flex-shrink-0" />
                                                 )}
-                                                <span className="truncate">{event.time} {event.title}</span>
+                                                <span className="truncate font-medium">{event.time}</span>
                                             </div>
-                                        </div>
+                                            <div className="truncate pl-4 mt-0.5">{event.title}</div>
+                                        </Link>
                                     ))}
                                 </div>
                             </div>
@@ -175,7 +240,6 @@ export default async function MeetingCalendarPage() {
                 </div>
             </div>
 
-            {/* Quick Actions */}
             <div className="flex flex-wrap gap-4">
                 <Link href="/dashboard/meetings/schedule" className="btn btn-primary">
                     Schedule New Meeting
@@ -186,4 +250,4 @@ export default async function MeetingCalendarPage() {
             </div>
         </div>
     )
-} 
+}
