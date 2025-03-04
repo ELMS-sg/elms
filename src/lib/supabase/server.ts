@@ -8,7 +8,7 @@ import { cache } from 'react'
  * This client uses cookies for authentication
  * Using cache to avoid multiple instantiations
  */
-export const createClient = cache(() => {
+export const createClient = cache(async () => {
     const cookieStore = cookies()
     return createRouteHandlerClient<Database>({
         cookies: () => cookieStore,

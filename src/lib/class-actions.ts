@@ -172,6 +172,7 @@ export async function getStudentClasses() {
                 classes (
                     id,
                     name,
+                    image,
                     description,
                     teacher_id,
                     start_date,
@@ -208,6 +209,7 @@ export async function getStudentClasses() {
                         classes (
                             id,
                             name,
+                            image,
                             description,
                             teacher_id,
                             start_date,
@@ -259,7 +261,7 @@ export async function getStudentClasses() {
                         learningMethod: "Hybrid",
                         location: "Main Campus",
                         totalStudents: 0,
-                        image: "/images/ielts-academic.jpg",
+                        image: classData.image,
                         tags: ["IELTS", "Academic"],
                     };
                 });
@@ -299,7 +301,7 @@ export async function getStudentClasses() {
                 learningMethod: "Hybrid",
                 location: "Main Campus",
                 totalStudents: 0,
-                image: "/images/ielts-academic.jpg",
+                image: classData.image,
                 tags: ["IELTS", "Academic"],
             };
         });
@@ -332,6 +334,7 @@ export async function getTeacherClasses() {
                 id,
                 name,
                 description,
+                image,
                 start_date,
                 end_date
             `)
@@ -394,8 +397,8 @@ export async function getTeacherClasses() {
             learningMethod: "Hybrid",
             location: "Main Campus",
             totalStudents: studentCountMap[cls.id] || 0,
-            image: "/images/ielts-academic.jpg",
             tags: ["IELTS", "Academic"],
+            image: cls.image,
         }))
     } catch (error) {
         console.error('Exception in getTeacherClasses:', error)
@@ -417,7 +420,12 @@ export async function getClassById(classId: string) {
             id,
             name,
             description,
-            teacher_id,
+            image,
+            teacher_id (
+                id,
+                name,
+                avatar_url
+            ),
             start_date,
             end_date,
             users!classes_teacher_id_fkey (
@@ -470,7 +478,7 @@ export async function getClassById(classId: string) {
         teacher: (classData.users as any).name,
         teacherId: classData.teacher_id,
         teacherTitle: "IELTS Examiner & Senior Instructor", // This would need to be added to the database
-        teacherImage: "/images/teacher-sarah.jpg", // This would need to be added to the database
+        teacherImage: (classData.teacher_id as any).avatar_url,
         startDate: new Date(classData.start_date).toLocaleDateString('en-US', {
             year: 'numeric',
             month: 'long',
@@ -481,14 +489,13 @@ export async function getClassById(classId: string) {
             month: 'long',
             day: 'numeric'
         }),
-        // These fields would need to be added to the database in a real implementation
+        image: classData.image,
         level: "Intermediate (B1-B2)",
         schedule: "Tuesdays and Thursdays, 6:00 PM - 8:00 PM",
         learningMethod: "Hybrid",
         location: "Main Campus, Room 204",
         totalStudents: students.length,
         maxStudents: 20,
-        image: "/images/ielts-academic.jpg",
         tags: ["IELTS", "Academic"],
         syllabus: [
             "Week 1-2: Introduction to IELTS & Listening Skills",
@@ -521,6 +528,7 @@ export async function getAvailableClasses() {
         .select(`
             id,
             name,
+            image,
             description,
             teacher_id,
             start_date,
@@ -577,7 +585,7 @@ export async function getAvailableClasses() {
         learningMethod: "Hybrid",
         location: "Main Campus",
         totalStudents: 0,
-        image: "/images/ielts-academic.jpg",
+        image: cls.image,
         tags: ["IELTS", "Academic"],
     }))
 }

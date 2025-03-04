@@ -15,7 +15,6 @@ import {
     MapPin,
     Globe,
     Plus,
-    Settings,
     BarChart
 } from "lucide-react"
 

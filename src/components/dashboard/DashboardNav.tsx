@@ -1,10 +1,10 @@
 "use client"
 
 import Link from "next/link"
-import Image from "next/image"
 import { usePathname } from "next/navigation"
 import ClientOnly from "@/components/ClientOnly"
 import { serverSignOut } from "@/lib/actions"
+import { Avatar } from "@/components/Avatar"
 
 import {
     Home,
@@ -24,7 +24,7 @@ interface DashboardNavProps {
         id: string
         email?: string
         name?: string | null
-        avatar?: string | null
+        avatar_url?: string | null
         role?: string
     }
 }
@@ -33,6 +33,7 @@ export function DashboardNav({ user }: DashboardNavProps) {
     const pathname = usePathname()
     const displayName = user.name || user.email
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+    console.log(user)
 
     const navigation = [
         {
@@ -99,19 +100,12 @@ export function DashboardNav({ user }: DashboardNavProps) {
                                     <span className="absolute top-1 right-1 w-2 h-2 bg-accent-red rounded-full"></span>
                                 </button>
                                 <div className="hidden md:flex items-center">
-                                    {user.avatar ? (
-                                        <Image
-                                            src={user.avatar}
-                                            alt={displayName || "User"}
-                                            width={32}
-                                            height={32}
-                                            className="rounded-full mr-3 border border-gray-200"
-                                        />
-                                    ) : (
-                                        <div className="w-8 h-8 rounded-full bg-gray-100 text-gray-600 flex items-center justify-center mr-3">
-                                            {displayName?.charAt(0).toUpperCase() || "U"}
-                                        </div>
-                                    )}
+                                    <Avatar
+                                        url={user.avatar_url}
+                                        name={displayName}
+                                        size="sm"
+                                        className="mr-3"
+                                    />
                                     <span className="text-sm font-medium text-gray-700 mr-4">
                                         {displayName}
                                     </span>
@@ -154,7 +148,7 @@ export function DashboardNav({ user }: DashboardNavProps) {
                                 className={`${item.current
                                     ? "bg-gray-100 text-primary-700"
                                     : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-                                    } block px-3 py-2 rounded-md text-base font-medium flex items-center`}
+                                    } px-3 py-2 rounded-md text-base font-medium flex items-center`}
                                 onClick={() => setMobileMenuOpen(false)}
                             >
                                 <span className="mr-3">{item.icon}</span>
@@ -163,19 +157,12 @@ export function DashboardNav({ user }: DashboardNavProps) {
                         ))}
                         <div className="pt-4 pb-3 border-t border-gray-200">
                             <div className="flex items-center px-3">
-                                {user.avatar ? (
-                                    <Image
-                                        src={user.avatar}
-                                        alt={displayName || "User"}
-                                        width={40}
-                                        height={40}
-                                        className="rounded-full mr-3 border border-gray-200"
-                                    />
-                                ) : (
-                                    <div className="w-10 h-10 rounded-full bg-gray-100 text-gray-600 flex items-center justify-center mr-3">
-                                        {displayName?.charAt(0).toUpperCase() || "U"}
-                                    </div>
-                                )}
+                                <Avatar
+                                    url={user.avatar_url}
+                                    name={displayName}
+                                    size="md"
+                                    className="mr-3"
+                                />
                                 <div>
                                     <div className="text-base font-medium text-gray-800">{displayName}</div>
                                     <div className="text-sm font-medium text-gray-500">{user.email}</div>

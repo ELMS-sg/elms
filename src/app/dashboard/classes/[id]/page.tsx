@@ -5,7 +5,6 @@ import { notFound } from "next/navigation"
 import { requireServerAuth } from "@/lib/actions"
 import { getClassById } from "@/lib/class-actions"
 import {
-    BookOpen,
     Calendar,
     Clock,
     Users,
@@ -16,12 +15,16 @@ import {
     FileText,
     MessageSquare,
     CheckCircle,
-    ChevronRight
 } from "lucide-react"
+import { Avatar } from "@/components/Avatar"
 
-export const generateMetadata = async ({ params }: { params: { id: string } }): Promise<Metadata> => {
-    // Get the class data from the database
-    const classData = await getClassById(params.id)
+type Props = {
+    params: { id: string }
+}
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+    const id = await Promise.resolve(params.id)
+    const classData = await getClassById(id)
 
     if (!classData) {
         return {
@@ -38,12 +41,15 @@ export const generateMetadata = async ({ params }: { params: { id: string } }): 
 
 export const dynamic = 'force-dynamic'
 
-export default async function ClassDetailPage({ params }: { params: { id: string } }) {
+export default async function ClassDetailPage({ params }: Props) {
     // Get the authenticated user
     const user = await requireServerAuth()
 
+    // Resolve the ID parameter
+    const id = await Promise.resolve(params.id)
+
     // Get class data from the database
-    const classData = await getClassById(params.id)
+    const classData = await getClassById(id)
 
     // If class not found, show 404 page
     if (!classData) {
@@ -71,6 +77,7 @@ export default async function ClassDetailPage({ params }: { params: { id: string
                         alt={classData.name}
                         fill
                         className="object-cover"
+                        priority
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end">
                         <div className="p-6 text-white">
@@ -193,12 +200,10 @@ export default async function ClassDetailPage({ params }: { params: { id: string
                         <div className="flex items-start">
                             <div className="w-16 h-16 rounded-full bg-primary-100 text-primary-600 flex items-center justify-center mr-4 flex-shrink-0">
                                 {classData.teacherImage ? (
-                                    <Image
-                                        src={classData.teacherImage}
-                                        alt={classData.teacher}
-                                        width={64}
-                                        height={64}
-                                        className="rounded-full"
+                                    <Avatar
+                                        url={classData.teacherImage}
+                                        name={classData.teacher}
+                                        size="md"
                                     />
                                 ) : (
                                     <span className="font-medium text-lg">

@@ -17,6 +17,8 @@ import {
     FileText,
 } from "lucide-react"
 import { format, isPast } from "date-fns"
+import { Avatar } from "@/components/Avatar"
+import { getUserProfile } from "@/lib/user-actions"
 
 export const metadata: Metadata = {
     title: "Assignments | English Learning Center",
@@ -27,7 +29,8 @@ export const dynamic = 'force-dynamic'
 
 export default async function AssignmentsPage() {
     // Get authenticated user
-    const user = await requireServerAuth()
+    const _user = await requireServerAuth()
+    const user = await getUserProfile(_user.id)
     const isTeacher = user.role === 'TEACHER'
 
     // Fetch real data based on user role
@@ -268,19 +271,11 @@ export default async function AssignmentsPage() {
 
                                     <div className="flex items-center mb-4">
                                         <div className="flex-shrink-0 mr-3">
-                                            {submission.student.avatar ? (
-                                                <Image
-                                                    src={submission.student.avatar}
-                                                    alt={submission.student.name}
-                                                    width={36}
-                                                    height={36}
-                                                    className="rounded-full border border-gray-200"
-                                                />
-                                            ) : (
-                                                <div className="w-9 h-9 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 font-medium">
-                                                    {submission.student.name.charAt(0).toUpperCase()}
-                                                </div>
-                                            )}
+                                            <Avatar
+                                                url={submission.student.avatar}
+                                                name={submission.student.name}
+                                                size="sm"
+                                            />
                                         </div>
                                         <div>
                                             <p className="text-sm font-medium text-gray-900">{submission.student.name}</p>

@@ -2,12 +2,11 @@
 
 import { cookies } from 'next/headers'
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
-import { redirect } from 'next/navigation'
-import { requireServerAuth } from './actions'
+import { requireServerAuth } from "@/lib/actions"
 import { revalidatePath } from 'next/cache'
 import { cache } from 'react'
 import { Database } from '@/types/supabase'
-import { createAdminClient } from './supabase/admin'
+import { Meeting, CalendarMeeting, MeetingType, MeetingStatus, Teacher, RelatedClass } from "@/types/meetings"
 
 // Helper function to get Supabase client
 const getSupabase = cache(async () => {
@@ -15,22 +14,12 @@ const getSupabase = cache(async () => {
     return createRouteHandlerClient<Database>({ cookies: () => cookieStore })
 })
 
-// Define meeting types
-export type MeetingType = 'ONE_ON_ONE' | 'GROUP'
-export type MeetingStatus = 'confirmed' | 'pending' | 'cancelled'
-
-// Define types for database responses
+// Database response types
 type TeacherData = {
     id: string;
-    name: string;
-    image: string;
-    title: string;
-};
+} & Teacher;
 
-type ClassData = {
-    id: string;
-    name: string;
-};
+type ClassData = RelatedClass;
 
 type MeetingData = {
     id: string;
@@ -77,7 +66,7 @@ let mockMeetings: MockMeeting[] = [];
 /**
  * Get all upcoming meetings for a user (both student and teacher)
  */
-export async function getUpcomingMeetings() {
+export async function getUpcomingMeetings(): Promise<Meeting[]> {
     const user = await requireServerAuth()
     const supabase = await getSupabase()
 
@@ -102,7 +91,7 @@ export async function getUpcomingMeetings() {
                 status,
                 max_participants,
                 participants_count,
-                teacher_id(id, name, image, title),
+                teacher_id(id, name, avatar_url, title),
                 class_id(id, name)
             `)
             .gte('start_time', now)
@@ -123,14 +112,14 @@ export async function getUpcomingMeetings() {
         }
 
         // Format the data to match the expected structure
-        const dbMeetings = (data as unknown as MeetingData[]).map(meeting => ({
+        return (data as unknown as MeetingData[]).map(meeting => ({
             id: meeting.id,
             title: meeting.title,
             description: meeting.description,
             teacher: {
                 name: meeting.teacher_id?.name || 'Unknown Teacher',
-                image: meeting.teacher_id?.image || '/images/default-avatar.jpg',
-                title: meeting.teacher_id?.title || 'Teacher'
+                avatar_url: meeting.teacher_id?.avatar_url || '/images/default-avatar.jpg',
+                title: meeting.teacher_id?.title || 'Teacher',
             },
             type: meeting.type as MeetingType,
             startTime: formatDateTime(meeting.start_time),
@@ -147,22 +136,6 @@ export async function getUpcomingMeetings() {
             participants: meeting.participants_count || 0,
             maxParticipants: meeting.max_participants || 0
         }))
-
-        // Filter mock meetings based on user role and date
-        const relevantMockMeetings = mockMeetings.filter(meeting => {
-            const meetingDate = new Date(meeting.start_time);
-            const isUpcoming = meetingDate > new Date();
-
-            if (user.role === 'STUDENT') {
-                return isUpcoming && meeting.student_id === user.id;
-            } else if (user.role === 'TEACHER') {
-                return isUpcoming && meeting.teacher_id === user.id;
-            }
-            return false;
-        });
-
-        // Combine database meetings with mock meetings
-        return [...dbMeetings];
     } catch (error) {
         console.error('Error in getUpcomingMeetings:', error)
         return []
@@ -172,7 +145,7 @@ export async function getUpcomingMeetings() {
 /**
  * Get all past meetings for a user
  */
-export async function getPastMeetings() {
+export async function getPastMeetings(): Promise<Meeting[]> {
     const user = await requireServerAuth()
     const supabase = await getSupabase()
 
@@ -197,7 +170,7 @@ export async function getPastMeetings() {
                 status,
                 max_participants,
                 participants_count,
-                teacher_id(id, name, image, title),
+                teacher_id(id, name, avatar_url, title),
                 class_id(id, name)
             `)
             .lt('end_time', now)
@@ -219,13 +192,13 @@ export async function getPastMeetings() {
         }
 
         // Format the data to match the expected structure
-        const dbMeetings = (data as unknown as MeetingData[]).map(meeting => ({
+        return (data as unknown as MeetingData[]).map(meeting => ({
             id: meeting.id,
             title: meeting.title,
             description: meeting.description,
             teacher: {
                 name: meeting.teacher_id?.name || 'Unknown Teacher',
-                image: meeting.teacher_id?.image || '/images/default-avatar.jpg',
+                avatar_url: meeting.teacher_id?.avatar_url || '/images/default-avatar.jpg',
                 title: meeting.teacher_id?.title || 'Teacher'
             },
             type: meeting.type as MeetingType,
@@ -243,53 +216,6 @@ export async function getPastMeetings() {
             participants: meeting.participants_count || 0,
             maxParticipants: meeting.max_participants || 0
         }))
-
-        // Filter mock meetings based on user role and date
-        const relevantMockMeetings = mockMeetings.filter(meeting => {
-            const meetingDate = new Date(meeting.end_time);
-            const isPast = meetingDate < new Date();
-
-            if (user.role === 'STUDENT') {
-                return isPast && meeting.student_id === user.id;
-            } else if (user.role === 'TEACHER') {
-                return isPast && meeting.teacher_id === user.id;
-            }
-            return false;
-        });
-
-        // Format mock meetings to match the expected structure
-        const formattedMockMeetings = relevantMockMeetings.map(meeting => {
-            // Get class name from mock data or use a placeholder
-            const className = "Mock Class"; // In a real app, you'd look up the class name
-
-            return {
-                id: meeting.id,
-                title: meeting.title,
-                description: meeting.description || "",
-                teacher: {
-                    name: user.name || 'Your Teacher',
-                    image: user.avatar || '/images/default-avatar.jpg',
-                    title: 'Teacher'
-                },
-                type: meeting.type,
-                startTime: formatDateTime(meeting.start_time),
-                endTime: formatDateTime(meeting.end_time),
-                duration: calculateDuration(meeting.start_time, meeting.end_time),
-                isOnline: meeting.is_online,
-                meetingLink: meeting.meeting_link,
-                location: meeting.location,
-                status: meeting.status,
-                relatedClass: meeting.class_id ? {
-                    id: meeting.class_id,
-                    name: className
-                } : null,
-                participants: 0,
-                maxParticipants: meeting.max_participants || 0
-            };
-        });
-
-        // Combine database meetings with mock meetings
-        return [...dbMeetings, ...formattedMockMeetings];
     } catch (error) {
         console.error('Error in getPastMeetings:', error)
         return []
@@ -299,7 +225,7 @@ export async function getPastMeetings() {
 /**
  * Get meeting details by ID
  */
-export async function getMeetingById(meetingId: string) {
+export async function getMeetingById(meetingId: string): Promise<Meeting | null> {
     const user = await requireServerAuth()
     const supabase = await getSupabase()
 
@@ -320,7 +246,7 @@ export async function getMeetingById(meetingId: string) {
                 status,
                 max_participants,
                 participants_count,
-                teacher_id(id, name, image, title),
+                teacher_id(id, name, avatar_url, title),
                 class_id(id, name)
             `)
             .eq('id', meetingId)
@@ -343,7 +269,7 @@ export async function getMeetingById(meetingId: string) {
             description: meeting.description,
             teacher: {
                 name: meeting.teacher_id?.name || 'Unknown Teacher',
-                image: meeting.teacher_id?.image || '/images/default-avatar.jpg',
+                avatar_url: meeting.teacher_id?.avatar_url || '/images/default-avatar.jpg',
                 title: meeting.teacher_id?.title || 'Teacher'
             },
             type: meeting.type as MeetingType,
@@ -521,7 +447,7 @@ export async function getAvailableTeachers() {
             .select(`
                 id,
                 name,
-                image,
+                avatar_url,
                 title,
                 specialties,
                 rating,
@@ -538,7 +464,7 @@ export async function getAvailableTeachers() {
         return data.map(teacher => ({
             id: teacher.id,
             name: teacher.name,
-            image: teacher.image || '/images/default-avatar.jpg',
+            avatar_url: teacher.avatar_url || '/images/default-avatar.jpg',
             title: teacher.title || 'Teacher',
             specialties: teacher.specialties || [],
             rating: teacher.rating || 4.5,
@@ -584,7 +510,7 @@ export async function getTeacherAvailability(teacherId: string) {
 /**
  * Get available meeting slots
  */
-export async function getAvailableMeetings() {
+export async function getAvailableMeetings(): Promise<Meeting[]> {
     const user = await requireServerAuth()
     const supabase = await getSupabase()
 
@@ -609,7 +535,7 @@ export async function getAvailableMeetings() {
                 status,
                 max_participants,
                 available_slots,
-                teacher_id(id, name, image, title),
+                teacher_id(id, name, avatar_url, title),
                 class_id(id, name)
             `)
             .eq('status', 'open')
@@ -635,14 +561,13 @@ export async function getAvailableMeetings() {
             }
         }
 
-        // Format the data to match the expected structure
-        return (filteredData as unknown as MeetingData[]).map(meeting => ({
+        return (filteredData as unknown as any[]).map(meeting => ({
             id: meeting.id,
             title: meeting.title,
             description: meeting.description,
             teacher: {
                 name: meeting.teacher_id?.name || 'Unknown Teacher',
-                image: meeting.teacher_id?.image || '/images/default-avatar.jpg',
+                avatar_url: meeting.teacher_id?.avatar_url || '/images/default-avatar.jpg',
                 title: meeting.teacher_id?.title || 'Teacher'
             },
             type: meeting.type as MeetingType,
@@ -652,12 +577,13 @@ export async function getAvailableMeetings() {
             isOnline: meeting.is_online,
             meetingLink: meeting.meeting_link,
             location: meeting.location,
-            availableSlots: meeting.available_slots || 1,
-            maxParticipants: meeting.max_participants || 1,
+            status: meeting.status as MeetingStatus,
             relatedClass: meeting.class_id ? {
                 id: meeting.class_id.id,
                 name: meeting.class_id.name
-            } : null
+            } : null,
+            participants: meeting.participants_count || 0,
+            maxParticipants: meeting.max_participants || 0
         }))
     } catch (error) {
         console.error('Error in getAvailableMeetings:', error)
@@ -668,7 +594,7 @@ export async function getAvailableMeetings() {
 /**
  * Get all meetings for calendar view
  */
-export async function getMeetingsForCalendar() {
+export async function getMeetingsForCalendar(): Promise<CalendarMeeting[]> {
     const user = await requireServerAuth()
 
     try {
@@ -703,7 +629,8 @@ export async function getMeetingsForCalendar() {
                 time: meeting.startTime.split(', ')[1] || meeting.startTime,
                 isOnline: meeting.isOnline,
                 type: meeting.type,
-                day
+                day,
+                teacher: meeting.teacher
             }
         }).filter(meeting => meeting.day !== null)
     } catch (error) {
@@ -713,20 +640,28 @@ export async function getMeetingsForCalendar() {
 }
 
 // Helper function to format date and time
-function formatDateTime(isoString: string): string {
-    const date = new Date(isoString)
-    const now = new Date()
-    const tomorrow = new Date(now)
+function formatDateTime(dateStr: string): string {
+    const date = new Date(dateStr)
+    const today = new Date()
+    const tomorrow = new Date(today)
     tomorrow.setDate(tomorrow.getDate() + 1)
 
-    // Check if the date is today or tomorrow
-    if (date.toDateString() === now.toDateString()) {
-        return `Today, ${date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}`
+    let dayStr = ''
+    if (date.toDateString() === today.toDateString()) {
+        dayStr = 'Today'
     } else if (date.toDateString() === tomorrow.toDateString()) {
-        return `Tomorrow, ${date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}`
+        dayStr = 'Tomorrow'
     } else {
-        return `${date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}, ${date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}`
+        dayStr = date.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })
     }
+
+    const timeStr = date.toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true
+    })
+
+    return `${dayStr}, ${timeStr}`
 }
 
 // Helper function to calculate duration between two dates

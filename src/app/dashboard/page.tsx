@@ -14,6 +14,8 @@ import {
 import Link from "next/link"
 import Image from "next/image"
 import { redirect } from "next/navigation"
+import { Avatar } from "@/components/Avatar"
+import { getUserProfile } from "@/lib/user-actions"
 
 export const dynamic = "force-dynamic"
 
@@ -49,7 +51,8 @@ export default async function DashboardPage({
     }
 
     // Use requireAuth which handles the redirect if not authenticated
-    const user = await requireServerAuth()
+    const _user = await requireServerAuth()
+    const user = await getUserProfile(_user.id)
     const isTeacher = user.role === 'TEACHER'
 
     // Mock data for dashboard statistics - different for teachers and students
@@ -225,19 +228,12 @@ export default async function DashboardPage({
                         <div className="p-6">
                             <h2 className="text-lg font-semibold text-gray-900 mb-4">Your Profile</h2>
                             <div className="flex items-center mb-4">
-                                {user.avatar ? (
-                                    <Image
-                                        src={user.avatar}
-                                        alt={user.name || "User"}
-                                        width={64}
-                                        height={64}
-                                        className="rounded-full border border-gray-200"
-                                    />
-                                ) : (
-                                    <div className="w-16 h-16 rounded-full bg-gray-100 text-gray-600 flex items-center justify-center text-xl font-semibold">
-                                        {user.name?.charAt(0).toUpperCase() || user.email?.charAt(0).toUpperCase() || "U"}
-                                    </div>
-                                )}
+                                <Avatar
+                                    url={user.avatar_url}
+                                    name={user.name || user.email}
+                                    size="md"
+                                    className="mr-4"
+                                />
                                 <div className="ml-4">
                                     <h3 className="text-lg font-medium text-gray-900">{user.name}</h3>
                                     <p className="text-sm text-gray-500">{user.email}</p>

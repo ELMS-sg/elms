@@ -2,12 +2,10 @@
 
 import { useState, useEffect, FormEvent } from "react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
 import { ArrowLeft } from "lucide-react"
 import { StudentsList } from "@/components/StudentsList"
 
 export default function CreateMeetingPage() {
-    const router = useRouter()
     const [user, setUser] = useState<any>(null)
     const [classes, setClasses] = useState<any[]>([])
     const [loading, setLoading] = useState(true)

@@ -4,7 +4,8 @@ const nextConfig = {
         remotePatterns: [
             {
                 protocol: 'https',
-                hostname: '**',
+                hostname: 'futofgoylaprwlulpuuw.supabase.co',
+                pathname: '/storage/v1/object/public/**',
             },
         ],
     },
@@ -24,6 +25,11 @@ const nextConfig = {
         // your project has ESLint errors.
         ignoreDuringBuilds: true,
     },
+    experimental: {
+        serverActions: {
+            bodySizeLimit: '5mb'
+        }
+    }
 }
 
 module.exports = nextConfig 

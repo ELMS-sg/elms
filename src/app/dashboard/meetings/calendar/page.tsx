@@ -2,6 +2,8 @@ import { Metadata } from "next"
 import Link from "next/link"
 import { requireServerAuth } from "@/lib/actions"
 import { getMeetingsForCalendar } from "@/lib/meeting-actions"
+import { Avatar } from "@/components/Avatar"
+import { CalendarMeeting } from "@/types/meetings"
 import {
     Calendar as CalendarIcon,
     ChevronLeft,
@@ -13,7 +15,7 @@ import {
 
 export const metadata: Metadata = {
     title: "Meeting Calendar | English Learning Center",
-    description: "View your scheduled meetings in calendar format",
+    description: "View and manage your scheduled meetings in calendar format",
 }
 
 export const dynamic = 'force-dynamic'
@@ -42,6 +44,13 @@ function getDateFromParams(month: string | undefined, year: string | undefined):
         console.error('Error parsing date params:', error)
         return currentDate
     }
+}
+
+interface CalendarDay {
+    date: number
+    isCurrentMonth: boolean
+    events: CalendarMeeting[]
+    isToday: boolean
 }
 
 export default async function MeetingCalendarPage({
@@ -84,7 +93,7 @@ export default async function MeetingCalendarPage({
     const nextYear = nextDate.getFullYear()
 
     // Generate calendar days
-    const calendarDays = Array.from({ length: 42 }, (_, i) => {
+    const calendarDays: CalendarDay[] = Array.from({ length: 42 }, (_, i) => {
         const day = i - startingDayOfWeek + 1 // Adjust to start from the correct day of week
         const isCurrentMonth = day > 0 && day <= daysInMonth
         const date = isCurrentMonth
@@ -207,7 +216,19 @@ export default async function MeetingCalendarPage({
                                                 )}
                                                 <span className="truncate font-medium">{event.time}</span>
                                             </div>
-                                            <div className="truncate pl-4 mt-0.5">{event.title}</div>
+                                            <div className="truncate pl-4 mt-0.5">
+                                                <div className="flex items-center gap-1">
+                                                    {event.teacher && (
+                                                        <Avatar
+                                                            url={event.teacher.image}
+                                                            name={event.teacher.name}
+                                                            size="sm"
+                                                            className="w-4 h-4"
+                                                        />
+                                                    )}
+                                                    <span>{event.title}</span>
+                                                </div>
+                                            </div>
                                         </Link>
                                     ))}
                                 </div>

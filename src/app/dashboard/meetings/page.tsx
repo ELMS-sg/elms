@@ -3,18 +3,15 @@ import Image from "next/image"
 import Link from "next/link"
 import { requireServerAuth } from "@/lib/actions"
 import { getUpcomingMeetings, getPastMeetings } from "@/lib/meeting-actions"
+import { Avatar } from "@/components/Avatar"
 import {
     Calendar,
     Clock,
     Users,
     Search,
-    Filter,
     Plus,
     Video,
-    ChevronRight,
-    CheckCircle,
     X,
-    MessageSquare,
     BookOpen,
     ExternalLink,
     ArrowLeft
@@ -25,7 +22,7 @@ type MeetingType = "ONE_ON_ONE" | "GROUP"
 
 interface Teacher {
     name: string;
-    image: string;
+    avatar_url: string;
     title: string;
 }
 
@@ -49,7 +46,7 @@ interface Meeting {
     participants?: number;
     maxParticipants?: number;
     notes?: string;
-    studentName?: string; // For 1-on-1 meetings
+    studentName?: string;
 }
 
 export const metadata: Metadata = {
@@ -68,7 +65,7 @@ export default async function MeetingsPage() {
         let pastMeetings: Meeting[] = []
 
         try {
-            upcomingMeetings = await getUpcomingMeetings() as Meeting[]
+            upcomingMeetings = await getUpcomingMeetings() as unknown as Meeting[]
             console.log(`Fetched ${upcomingMeetings.length} upcoming meetings`)
         } catch (error) {
             console.error('Error fetching upcoming meetings:', error)
@@ -76,7 +73,7 @@ export default async function MeetingsPage() {
         }
 
         try {
-            pastMeetings = await getPastMeetings() as Meeting[]
+            pastMeetings = await getPastMeetings() as unknown as Meeting[]
             console.log(`Fetched ${pastMeetings.length} past meetings`)
         } catch (error) {
             console.error('Error fetching past meetings:', error)
@@ -208,15 +205,11 @@ export default async function MeetingsPage() {
 
                                         <div className="mt-auto">
                                             <div className="flex items-center mb-3">
-                                                <div className="flex-shrink-0">
-                                                    <Image
-                                                        src={meeting.teacher.image}
-                                                        alt={meeting.teacher.name}
-                                                        width={36}
-                                                        height={36}
-                                                        className="rounded-full"
-                                                    />
-                                                </div>
+                                                <Avatar
+                                                    url={meeting.teacher.avatar_url}
+                                                    name={meeting.teacher.name}
+                                                    size="sm"
+                                                />
                                                 <div className="ml-3">
                                                     <p className="text-sm font-medium text-gray-900">{meeting.teacher.name}</p>
                                                     <p className="text-xs text-gray-500">{meeting.teacher.title}</p>
@@ -345,15 +338,11 @@ export default async function MeetingsPage() {
 
                                         <div className="mt-auto">
                                             <div className="flex items-center mb-3">
-                                                <div className="flex-shrink-0">
-                                                    <Image
-                                                        src={meeting.teacher.image}
-                                                        alt={meeting.teacher.name}
-                                                        width={36}
-                                                        height={36}
-                                                        className="rounded-full"
-                                                    />
-                                                </div>
+                                                <Avatar
+                                                    url={meeting.teacher.avatar_url}
+                                                    name={meeting.teacher.name}
+                                                    size="sm"
+                                                />
                                                 <div className="ml-3">
                                                     <p className="text-sm font-medium text-gray-900">{meeting.teacher.name}</p>
                                                     <p className="text-xs text-gray-500">{meeting.teacher.title}</p>

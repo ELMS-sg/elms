@@ -3,6 +3,7 @@ import { requireServerAuth } from "@/lib/actions"
 import ProfileForm from "@/components/profile/ProfileForm"
 import { getUserProfile } from "@/lib/user-actions"
 import { Mail, Calendar, BookOpen } from "lucide-react"
+import { AvatarUpload } from "@/components/AvatarUpload"
 
 export const metadata: Metadata = {
     title: "My Profile | English Learning Center",
@@ -135,9 +136,11 @@ export default async function ProfilePage() {
                 <div className="space-y-6">
                     <div className="bg-white rounded-lg shadow-card p-6">
                         <div className="flex flex-col items-center">
-                            <div className="w-24 h-24 rounded-full bg-primary-100 flex items-center justify-center text-primary-600 text-2xl font-bold mb-4">
-                                {profile.name.charAt(0).toUpperCase()}
-                            </div>
+                            <AvatarUpload
+                                userId={profile.id}
+                                currentAvatarUrl={profile.avatar_url}
+                                className="mb-4"
+                            />
                             <h3 className="text-xl font-semibold text-gray-900">{profile.name}</h3>
                             <p className="text-gray-500 capitalize">{profile.role.toLowerCase()}</p>
                         </div>

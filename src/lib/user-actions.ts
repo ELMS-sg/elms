@@ -17,7 +17,7 @@ type ProfileFormValues = z.infer<typeof profileFormSchema>
  * Get a user's profile information including their enrollments or classes
  */
 export async function getUserProfile(userId: string) {
-    const supabase = createClient()
+    const supabase = await createClient()
 
     // Get the user's basic information
     const { data: user, error: userError } = await supabase
@@ -80,7 +80,7 @@ export async function getUserProfile(userId: string) {
  * Update a user's profile information
  */
 export async function updateUserProfile(userId: string, data: ProfileFormValues) {
-    const supabase = createClient()
+    const supabase = await createClient()
 
     // Validate the input data
     const validatedData = profileFormSchema.parse(data)
@@ -111,7 +111,7 @@ export async function updateUserProfile(userId: string, data: ProfileFormValues)
  * Change a user's password
  */
 export async function changeUserPassword(userId: string, currentPassword: string, newPassword: string) {
-    const supabase = createClient()
+    const supabase = await createClient()
 
     // First verify the current password
     const { data: user, error: userError } = await supabase
@@ -169,7 +169,7 @@ export interface NotificationPreferences {
  */
 export async function getUserNotificationPreferences(userId: string): Promise<NotificationPreferences> {
     try {
-        const supabase = createClient()
+        const supabase = await createClient()
 
         const { data, error } = await supabase
             .from('user_notification_preferences')
@@ -217,7 +217,7 @@ export async function updateNotificationPreferences(
     preferences: NotificationPreferences
 ): Promise<{ message: string }> {
     try {
-        const supabase = createClient()
+        const supabase = await createClient()
 
         // Check if preferences exist for this user
         const { data: existingPrefs } = await supabase
@@ -257,5 +257,86 @@ export async function updateNotificationPreferences(
     } catch (error) {
         console.error('Error in updateNotificationPreferences:', error);
         throw error;
+    }
+}
+
+/**
+ * Upload a user's avatar image to Supabase Storage
+ * @param userId - The ID of the user
+ * @param file - The avatar image file to upload
+ * @returns The URL of the uploaded avatar
+ */
+export async function uploadUserAvatar(userId: string, file: File) {
+    try {
+        const supabase = await createClient()
+
+        // Generate a unique file name
+        const fileExt = file.name.split('.').pop()
+        const fileName = `${userId}-${Date.now()}.${fileExt}`
+
+        // Upload the file to the avatars bucket
+        const { data, error: uploadError } = await supabase.storage
+            .from('avatars')
+            .upload(`${userId}/${fileName}`, file, {
+                cacheControl: '3600',
+                upsert: true
+            })
+
+        if (uploadError) {
+            console.error('Error uploading to storage:', uploadError)
+            throw new Error(uploadError.message)
+        }
+
+        // Get the public URL
+        const { data: { publicUrl } } = supabase.storage
+            .from('avatars')
+            .getPublicUrl(`${userId}/${fileName}`)
+
+        // Update the user's avatar_url in the database
+        const { error: updateError } = await supabase
+            .from('users')
+            .update({
+                avatar_url: publicUrl,
+                updated_at: new Date().toISOString()
+            })
+            .eq('id', userId)
+
+        if (updateError) {
+            console.error('Error updating user:', updateError)
+            throw new Error(updateError.message)
+        }
+
+        return publicUrl
+    } catch (error) {
+        console.error('Error uploading avatar:', error)
+        throw error
+    }
+}
+
+/**
+ * Delete a user's previous avatar from storage
+ * @param userId - The ID of the user
+ * @param avatarUrl - The URL of the avatar to delete
+ */
+export async function deleteUserAvatar(userId: string, avatarUrl: string) {
+    try {
+        const supabase = await createClient()
+
+        // Extract the file name from the URL
+        const fileName = avatarUrl.split('/').pop()
+        if (!fileName) return
+
+        // Delete the file from storage
+        const { error } = await supabase.storage
+            .from('avatars')
+            .remove([`${userId}/${fileName}`])
+
+        if (error) {
+            console.error('Error deleting from storage:', error)
+            throw new Error(error.message)
+        }
+    } catch (error) {
+        console.error('Error deleting avatar:', error)
+        // Don't throw here as this is a cleanup operation
     }
 } 
