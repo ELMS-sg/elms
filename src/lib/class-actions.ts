@@ -397,6 +397,7 @@ export async function getClassById(classId: string) {
             description,
             image,
             meeting_url,
+            contact_group,
             teacher_id (
                 id,
                 name,
@@ -458,6 +459,7 @@ export async function getClassById(classId: string) {
         endDate: formatDate(classData.end_date),
         image: classData.image,
         meetingUrl: classData.meeting_url,
+        contactGroup: classData.contact_group,
         level: "Intermediate (B1-B2)",
         schedule: "Tuesdays and Thursdays, 6:00 PM - 8:00 PM",
         learningMethod: "Hybrid",
@@ -623,6 +625,51 @@ export async function unenrollFromClass(classId: string) {
 
     // Revalidate the classes page to show the updated enrollment
     revalidatePath('/dashboard/classes')
+
+    return { success: true }
+}
+
+/**
+ * Update the contact group link for a class
+ */
+export async function updateContactGroup(classId: string, contactGroup: string) {
+    const user = await requireServerAuth()
+    const supabase = await getSupabase()
+
+    // Only teachers can update the contact group
+    if (user.role !== 'TEACHER') {
+        throw new Error('Only teachers can update the contact group')
+    }
+
+    // Verify the teacher owns this class
+    const { data: classData, error: classError } = await supabase
+        .from('classes')
+        .select('teacher_id')
+        .eq('id', classId)
+        .single()
+
+    if (classError || !classData) {
+        console.error('Error verifying class ownership:', classError)
+        throw new Error('Failed to verify class ownership')
+    }
+
+    if (classData.teacher_id !== user.id) {
+        throw new Error('You can only update contact group for your own classes')
+    }
+
+    // Update the contact group
+    const { error: updateError } = await supabase
+        .from('classes')
+        .update({ contact_group: contactGroup })
+        .eq('id', classId)
+
+    if (updateError) {
+        console.error('Error updating contact group:', updateError)
+        throw new Error('Failed to update contact group')
+    }
+
+    // Revalidate the class page
+    revalidatePath(`/dashboard/classes/${classId}`)
 
     return { success: true }
 } 

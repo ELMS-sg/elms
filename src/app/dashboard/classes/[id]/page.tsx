@@ -2,8 +2,8 @@ import { Metadata } from "next"
 import Image from "next/image"
 import Link from "next/link"
 import { notFound } from "next/navigation"
+import { getClassById, updateContactGroup } from "@/lib/class-actions"
 import { requireServerAuth } from "@/lib/actions"
-import { getClassById } from "@/lib/class-actions"
 import {
     Calendar,
     Users,
@@ -15,6 +15,7 @@ import {
     MessageSquare,
     CheckCircle,
     Video,
+    Edit2,
 } from "lucide-react"
 import { Avatar } from "@/components/Avatar"
 
@@ -35,6 +36,7 @@ type ClassData = {
     endDate: string;
     image: string;
     meetingUrl?: string | null;
+    contactGroup?: string | null;
     level: string;
     schedule: string;
     learningMethod: string;
@@ -73,6 +75,7 @@ export const dynamic = 'force-dynamic'
 export default async function ClassDetailPage({ params }: Props) {
     // Resolve the ID parameter
     const id = await Promise.resolve(params.id)
+    const user = await requireServerAuth()
 
     // Get class data from the database
     const classData = await getClassById(id)
@@ -81,6 +84,8 @@ export default async function ClassDetailPage({ params }: Props) {
     if (!classData) {
         notFound()
     }
+
+    const isTeacher = user.role === 'TEACHER' && user.id === (classData.teacherId as any).id
 
     return (
         <div className="container mx-auto px-4 py-8">
@@ -117,7 +122,7 @@ export default async function ClassDetailPage({ params }: Props) {
                                     </span>
                                 ))}
                             </div>
-                            <h1 className="text-2xl md:text-3xl font-bold mb-2">{classData.name}</h1>
+                            <h1 className="text-2xl md:text-3xl font-bold mb-2 text-white">{classData.name}</h1>
                             <p className="text-white/80 mb-4 max-w-3xl">{classData.description}</p>
                             <div className="flex flex-wrap gap-4 text-sm">
                                 <div className="flex items-center">
@@ -240,10 +245,41 @@ export default async function ClassDetailPage({ params }: Props) {
                             <div>
                                 <h3 className="font-semibold text-gray-900 mb-1">{classData.teacher}</h3>
                                 <p className="text-sm text-gray-600 mb-3">{classData.teacherTitle}</p>
-                                <button className="btn btn-sm btn-outline w-full">
-                                    <MessageSquare className="h-4 w-4 mr-2" />
-                                    Contact Instructor
-                                </button>
+                                {isTeacher ? (
+                                    <form action={async (formData: FormData) => {
+                                        'use server'
+                                        const contactGroup = formData.get('contactGroup') as string
+                                        await updateContactGroup(id, contactGroup)
+                                    }}>
+                                        <div className="flex gap-2 mb-2">
+                                            <input
+                                                type="url"
+                                                name="contactGroup"
+                                                defaultValue={classData.contactGroup || ''}
+                                                placeholder="Enter group chat URL"
+                                                className="input input-sm flex-1"
+                                            />
+                                            <button type="submit" className="btn btn-sm btn-primary">
+                                                <Edit2 className="h-4 w-4" />
+                                            </button>
+                                        </div>
+                                    </form>
+                                ) : classData.contactGroup ? (
+                                    <a
+                                        href={classData.contactGroup}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                    >
+                                        <div className="btn btn-sm btn-outline w-full flex items-center justify-center">
+                                            <MessageSquare className="h-4 w-4 mr-2" />
+                                            <span>Contact Class Group</span>
+                                        </div>
+                                    </a>
+                                ) : (
+                                    <div className="text-sm text-gray-500 text-center p-2 bg-gray-50 rounded-lg">
+                                        No contact group available
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>
