@@ -10,6 +10,9 @@ import {
   Shield
 } from 'lucide-react'
 
+// Import the image statically
+import HeroImage from '../../public/HeroImage.png'
+
 export const metadata: Metadata = {
   title: "Learning Management System",
   description: "A modern platform for online education",
@@ -19,35 +22,49 @@ export default function Home() {
   return (
     <div className="flex flex-col min-h-screen">
       {/* Hero Section */}
-      <section className="bg-gray-50 py-16 md:py-24">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+      <section className="relative min-h-[600px] flex items-center">
+        {/* Background Image */}
+        <div className="absolute inset-0 w-full h-full">
+          <Image
+            src={HeroImage}
+            alt="Background"
+            fill
+            priority
+            placeholder="blur"
+            className="object-cover filter blur-[2px]"
+            sizes="100vw"
+          />
+          {/* Overlay */}
+          <div className="absolute inset-0 bg-gray-900/40 backdrop-blur-sm" />
+        </div>
+
+        {/* Content */}
+        <div className="container relative mx-auto px-4 sm:px-6 lg:px-8 z-10">
           <div className="flex flex-col md:flex-row items-center justify-between gap-12">
             <div className="md:w-1/2 space-y-6">
-              <h1 className="text-4xl md:text-5xl font-bold text-gray-900 leading-tight">
+              <h1 className="text-4xl md:text-5xl font-bold text-white leading-tight">
                 Empower Your Learning Journey
               </h1>
-              <p className="text-lg text-gray-600 max-w-lg">
+              <p className="text-lg text-gray-100 max-w-lg">
                 A comprehensive learning management system designed to enhance your educational experience with intuitive tools and resources.
               </p>
               <div className="flex flex-col sm:flex-row gap-4 pt-4">
-                <Link href="/signup" className="btn btn-primary">
+                <Link
+                  href="/signup"
+                  className="btn bg-primary-600 hover:bg-primary-700 text-white px-8 py-3 rounded-lg font-medium transition-colors"
+                >
                   Get Started
                 </Link>
-                <Link href="/contact" className="btn btn-outline">
+                <Link
+                  href="/contact"
+                  className="btn bg-white/10 hover:bg-white/20 text-white px-8 py-3 rounded-lg font-medium backdrop-blur-sm transition-colors border border-white/30"
+                >
                   Learn More
                 </Link>
               </div>
             </div>
-            <div className="md:w-1/2">
-              <div className="relative h-64 md:h-96 w-full rounded-lg overflow-hidden shadow-card">
-                <Image
-                  src="/images/hero-image.jpg"
-                  alt="Students learning online"
-                  fill
-                  className="object-cover"
-                  priority
-                />
-              </div>
+            <div className="md:w-1/2 md:flex hidden">
+              {/* Optional: Add some decorative elements or stats here */}
             </div>
           </div>
         </div>

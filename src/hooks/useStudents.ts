@@ -3,13 +3,6 @@
 import { useQuery } from '@tanstack/react-query';
 import axios from 'axios';
 
-interface Student {
-    id: string;
-    name: string;
-    email?: string;
-    avatar?: string;
-}
-
 /**
  * React Query hook to fetch students by class ID
  * @param classId The ID of the class to fetch students for

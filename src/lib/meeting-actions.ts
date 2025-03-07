@@ -60,9 +60,6 @@ interface MockMeeting {
     created_at: string;
 }
 
-// Global variable to store mock meetings
-let mockMeetings: MockMeeting[] = [];
-
 /**
  * Get all upcoming meetings for a user (both student and teacher)
  */

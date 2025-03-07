@@ -1,10 +1,6 @@
 'use server'
 
-import { cookies } from 'next/headers'
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
 import { redirect } from 'next/navigation'
-import { cache } from 'react'
-import { Database } from '@/types/supabase'
 import { createSampleClassData } from './class-actions'
 import { createSampleAssignmentData } from './assignment-actions'
 import { getSupabase, getSupabaseRouteHandler } from './supabase/client'
