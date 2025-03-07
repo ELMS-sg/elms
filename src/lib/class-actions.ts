@@ -6,6 +6,7 @@ import { requireServerAuth } from './actions'
 import { revalidatePath } from 'next/cache'
 import { cache } from 'react'
 import { Database } from '@/types/supabase'
+import { formatDate } from './utils'
 
 // Helper function to get Supabase client - cached to avoid multiple instantiations
 const getSupabase = cache(() => {
@@ -246,16 +247,8 @@ export async function getStudentClasses() {
                         description: classData.description,
                         teacher: teacher.name,
                         teacherId: classData.teacher_id,
-                        startDate: new Date(classData.start_date).toLocaleDateString('en-US', {
-                            year: 'numeric',
-                            month: 'long',
-                            day: 'numeric'
-                        }),
-                        endDate: new Date(classData.end_date).toLocaleDateString('en-US', {
-                            year: 'numeric',
-                            month: 'long',
-                            day: 'numeric'
-                        }),
+                        startDate: formatDate(classData.start_date),
+                        endDate: formatDate(classData.end_date),
                         // These fields would need to be added to the database in a real implementation
                         level: "Intermediate",
                         learningMethod: "Hybrid",
@@ -276,7 +269,6 @@ export async function getStudentClasses() {
 
         // Format the data to match the frontend expectations
         const formattedClasses = enrollments.map(enrollment => {
-            // Use type assertion to tell TypeScript that classes is a single object, not an array
             const classData = enrollment.classes as any;
             const teacher = classData.users as any;
 
@@ -286,17 +278,8 @@ export async function getStudentClasses() {
                 description: classData.description,
                 teacher: teacher.name,
                 teacherId: classData.teacher_id,
-                startDate: new Date(classData.start_date).toLocaleDateString('en-US', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric'
-                }),
-                endDate: new Date(classData.end_date).toLocaleDateString('en-US', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric'
-                }),
-                // These fields would need to be added to the database in a real implementation
+                startDate: formatDate(classData.start_date),
+                endDate: formatDate(classData.end_date),
                 level: "Intermediate",
                 learningMethod: "Hybrid",
                 location: "Main Campus",
@@ -383,16 +366,8 @@ export async function getTeacherClasses() {
             description: cls.description,
             teacher: user.name,
             teacherId: user.id,
-            startDate: new Date(cls.start_date).toLocaleDateString('en-US', {
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric'
-            }),
-            endDate: new Date(cls.end_date).toLocaleDateString('en-US', {
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric'
-            }),
+            startDate: formatDate(cls.start_date),
+            endDate: formatDate(cls.end_date),
             level: "Intermediate",
             learningMethod: "Hybrid",
             location: "Main Campus",
@@ -421,6 +396,7 @@ export async function getClassById(classId: string) {
             name,
             description,
             image,
+            meeting_url,
             teacher_id (
                 id,
                 name,
@@ -474,22 +450,14 @@ export async function getClassById(classId: string) {
         id: classData.id,
         name: classData.name,
         description: classData.description,
-        // Use type assertion for the teacher data
         teacher: (classData.users as any).name,
         teacherId: classData.teacher_id,
-        teacherTitle: "IELTS Examiner & Senior Instructor", // This would need to be added to the database
+        teacherTitle: "IELTS Examiner & Senior Instructor",
         teacherImage: (classData.teacher_id as any).avatar_url,
-        startDate: new Date(classData.start_date).toLocaleDateString('en-US', {
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric'
-        }),
-        endDate: new Date(classData.end_date).toLocaleDateString('en-US', {
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric'
-        }),
+        startDate: formatDate(classData.start_date),
+        endDate: formatDate(classData.end_date),
         image: classData.image,
+        meetingUrl: classData.meeting_url,
         level: "Intermediate (B1-B2)",
         schedule: "Tuesdays and Thursdays, 6:00 PM - 8:00 PM",
         learningMethod: "Hybrid",
@@ -570,16 +538,8 @@ export async function getAvailableClasses() {
         // Use type assertion for the teacher data
         teacher: (cls.users as any).name,
         teacherId: cls.teacher_id,
-        startDate: new Date(cls.start_date).toLocaleDateString('en-US', {
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric'
-        }),
-        endDate: new Date(cls.end_date).toLocaleDateString('en-US', {
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric'
-        }),
+        startDate: formatDate(cls.start_date),
+        endDate: formatDate(cls.end_date),
         // These fields would need to be added to the database in a real implementation
         level: "Intermediate",
         learningMethod: "Hybrid",

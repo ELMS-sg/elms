@@ -6,7 +6,6 @@ import { requireServerAuth } from "@/lib/actions"
 import { getClassById } from "@/lib/class-actions"
 import {
     Calendar,
-    Clock,
     Users,
     GraduationCap,
     ArrowLeft,
@@ -15,11 +14,41 @@ import {
     FileText,
     MessageSquare,
     CheckCircle,
+    Video,
 } from "lucide-react"
 import { Avatar } from "@/components/Avatar"
 
 type Props = {
     params: { id: string }
+}
+
+// Add type for class data
+type ClassData = {
+    id: string;
+    name: string;
+    description: string;
+    teacher: string;
+    teacherId: any;
+    teacherTitle: string;
+    teacherImage: string;
+    startDate: string;
+    endDate: string;
+    image: string;
+    meetingUrl?: string | null;
+    level: string;
+    schedule: string;
+    learningMethod: string;
+    location: string;
+    totalStudents: number;
+    maxStudents: number;
+    tags: string[];
+    syllabus: string[];
+    materials: string[];
+    students: Array<{
+        id: string;
+        name: string;
+        avatar: string | null;
+    }>;
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -42,9 +71,6 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export const dynamic = 'force-dynamic'
 
 export default async function ClassDetailPage({ params }: Props) {
-    // Get the authenticated user
-    const user = await requireServerAuth()
-
     // Resolve the ID parameter
     const id = await Promise.resolve(params.id)
 
@@ -264,13 +290,21 @@ export default async function ClassDetailPage({ params }: Props) {
                                 <FileText className="h-4 w-4 mr-2" />
                                 View Assignments
                             </Link>
-                            <Link
-                                href={`/dashboard/meetings?class=${classData.id}`}
-                                className="btn btn-outline w-full flex items-center justify-center"
-                            >
-                                <Clock className="h-4 w-4 mr-2" />
-                                Schedule Meetings
-                            </Link>
+                            {classData.meetingUrl ? (
+                                <a
+                                    href={classData.meetingUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="btn btn-accent w-full flex items-center justify-center bg-teal-600 hover:bg-teal-700 text-white transition-colors"
+                                >
+                                    <Video className="h-4 w-4 mr-2" />
+                                    Join Class Meeting
+                                </a>
+                            ) : (
+                                <div className="text-sm text-gray-500 text-center p-2 bg-gray-50 rounded-lg">
+                                    No meeting link available
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
