@@ -298,62 +298,6 @@ export default async function ClassesPage() {
                     </div>
                 </div>
             )}
-
-            {/* Stats Section */}
-            {enrolledClasses.length > 0 && (
-                <div className="mt-12 grid grid-cols-1 md:grid-cols-4 gap-6">
-                    <div className="bg-white rounded-lg shadow-card p-5">
-                        <div className="flex items-center">
-                            <div className="p-3 rounded-md bg-primary-50 text-primary-600 mr-4">
-                                <BookOpen className="h-5 w-5" />
-                            </div>
-                            <div>
-                                <p className="text-sm text-gray-500">
-                                    {user.role === 'STUDENT' ? 'Enrolled Classes' : 'Teaching Classes'}
-                                </p>
-                                <p className="text-xl font-semibold text-gray-900">{enrolledClasses.length}</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div className="bg-white rounded-lg shadow-card p-5">
-                        <div className="flex items-center">
-                            <div className="p-3 rounded-md bg-green-50 text-green-600 mr-4">
-                                <Clock className="h-5 w-5" />
-                            </div>
-                            <div>
-                                <p className="text-sm text-gray-500">Hours of Learning</p>
-                                <p className="text-xl font-semibold text-gray-900">{enrolledClasses.length * 24}</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div className="bg-white rounded-lg shadow-card p-5">
-                        <div className="flex items-center">
-                            <div className="p-3 rounded-md bg-blue-50 text-blue-600 mr-4">
-                                <Calendar className="h-5 w-5" />
-                            </div>
-                            <div>
-                                <p className="text-sm text-gray-500">Upcoming Classes</p>
-                                <p className="text-xl font-semibold text-gray-900">{Math.ceil(enrolledClasses.length / 2)}</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div className="bg-white rounded-lg shadow-card p-5">
-                        <div className="flex items-center">
-                            <div className="p-3 rounded-md bg-purple-50 text-purple-600 mr-4">
-                                <Users className="h-5 w-5" />
-                            </div>
-                            <div>
-                                <p className="text-sm text-gray-500">
-                                    {user.role === 'STUDENT' ? 'Fellow Students' : 'Total Students'}
-                                </p>
-                                <p className="text-xl font-semibold text-gray-900">
-                                    {enrolledClasses.reduce((total, cls) => total + cls.totalStudents, 0)}
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
         </div>
     )
 } 
