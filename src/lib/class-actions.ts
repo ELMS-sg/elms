@@ -493,7 +493,10 @@ export async function getAvailableClasses() {
     const user = await requireServerAuth()
     const supabase = await getSupabase()
 
-    // Get all classes
+    // Get current date in ISO format
+    const today = new Date().toISOString().split('T')[0]
+
+    // Get all classes with enrollment counts
     const { data: classes, error: classesError } = await supabase
         .from('classes')
         .select(`
@@ -504,53 +507,87 @@ export async function getAvailableClasses() {
             teacher_id,
             start_date,
             end_date,
+            max_students,
             users!classes_teacher_id_fkey (
                 id,
                 name
             )
         `)
+        .gte('end_date', today) // Only get classes that haven't ended yet
 
     if (classesError) {
         console.error('Error fetching classes:', classesError)
         return []
     }
 
-    // If the user is a student, get their enrollments to filter out classes they're already enrolled in
+    // Get enrollment counts for each class
+    const classIds = classes.map(c => c.id)
+    const { data: enrollmentCounts, error: countError } = await supabase
+        .from('class_enrollments')
+        .select('class_id')
+        .in('class_id', classIds)
+
+    if (countError) {
+        console.error('Error fetching enrollment counts:', countError)
+        return []
+    }
+
+    // Create a map of enrollment counts
+    const enrollmentMap = enrollmentCounts.reduce((acc, e) => {
+        acc[e.class_id] = (acc[e.class_id] || 0) + 1
+        return acc
+    }, {})
+
+    // If the user is a student, get their enrollments and requests
     let enrolledClassIds = []
+    let requestedClassIds = []
     if (user.role === 'STUDENT') {
+        // Get enrollments
         const { data: enrollments, error: enrollmentError } = await supabase
             .from('class_enrollments')
             .select('class_id')
             .eq('student_id', user.id)
 
-        if (enrollmentError) {
-            console.error('Error fetching enrollments:', enrollmentError)
-        } else {
+        if (!enrollmentError) {
             enrolledClassIds = enrollments.map(e => e.class_id)
+        }
+
+        // Get pending requests
+        const { data: requests, error: requestError } = await supabase
+            .from('enrollment_requests')
+            .select('class_id')
+            .eq('student_id', user.id)
+            .eq('status', 'pending')
+
+        if (!requestError) {
+            requestedClassIds = requests.map(r => r.class_id)
         }
     }
 
-    // Filter out classes the student is already enrolled in
-    const availableClasses = classes.filter(cls => !enrolledClassIds.includes(cls.id))
+    // Filter and format classes
+    const availableClasses = classes
+        .filter(cls => !enrolledClassIds.includes(cls.id))
+        .map(cls => {
+            const currentStudents = enrollmentMap[cls.id] || 0
+            const teacher = (cls.users as unknown as Database['public']['Tables']['users']['Row'])
 
-    // Format the data to match the frontend expectations
-    return availableClasses.map(cls => ({
-        id: cls.id,
-        name: cls.name,
-        description: cls.description,
-        // Use type assertion for the teacher data
-        teacher: (cls.users as any).name,
-        teacherId: cls.teacher_id,
-        startDate: formatDate(cls.start_date),
-        endDate: formatDate(cls.end_date),
-        // These fields would need to be added to the database in a real implementation
-        level: "Intermediate",
-        learningMethod: "Hybrid",
-        location: "Main Campus",
-        totalStudents: 0,
-        image: cls.image,
-        tags: ["IELTS", "Academic"],
-    }))
+            return {
+                id: cls.id,
+                name: cls.name,
+                description: cls.description,
+                teacher: teacher.name,
+                teacherId: cls.teacher_id,
+                startDate: formatDate(cls.start_date),
+                endDate: formatDate(cls.end_date),
+                image: cls.image,
+                currentStudents,
+                maxStudents: cls.max_students,
+                hasCapacity: currentStudents < cls.max_students,
+                hasPendingRequest: requestedClassIds.includes(cls.id)
+            }
+        })
+
+    return availableClasses
 }
 
 /**
@@ -673,4 +710,171 @@ export async function updateContactGroup(classId: string, contactGroup: string) 
     revalidatePath(`/dashboard/classes/${classId}`)
 
     return { success: true }
+}
+
+/**
+ * Request enrollment in a class
+ */
+export async function requestEnrollment(classId: string, message: string = '') {
+    const user = await requireServerAuth()
+    const supabase = await getSupabase()
+
+    if (user.role !== 'STUDENT') {
+        throw new Error('Only students can request enrollment in classes')
+    }
+
+    // Check if the student already has a pending request
+    const { data: existingRequest, error: checkError } = await supabase
+        .from('enrollment_requests')
+        .select('id, status')
+        .eq('class_id', classId)
+        .eq('student_id', user.id)
+        .single()
+
+    if (checkError && checkError.code !== 'PGRST116') {
+        console.error('Error checking enrollment request:', checkError)
+        throw new Error('Failed to check enrollment request status')
+    }
+
+    if (existingRequest) {
+        if (existingRequest.status === 'pending') {
+            throw new Error('You already have a pending request for this class')
+        } else if (existingRequest.status === 'approved') {
+            throw new Error('You are already enrolled in this class')
+        }
+    }
+
+    // Create the enrollment request
+    const { error: requestError } = await supabase
+        .from('enrollment_requests')
+        .insert({
+            class_id: classId,
+            student_id: user.id,
+            message,
+            status: 'pending',
+            requested_at: new Date().toISOString()
+        })
+
+    if (requestError) {
+        console.error('Error creating enrollment request:', requestError)
+        throw new Error('Failed to create enrollment request')
+    }
+
+    return { success: true }
+}
+
+/**
+ * Handle enrollment request (approve/reject)
+ */
+export async function handleEnrollmentRequest(requestId: string, action: 'approve' | 'reject', reason?: string) {
+    const user = await requireServerAuth()
+    const supabase = await getSupabase()
+
+    if (user.role !== 'TEACHER') {
+        throw new Error('Only teachers can handle enrollment requests')
+    }
+
+    // Get the request details
+    const { data: request, error: requestError } = await supabase
+        .from('enrollment_requests')
+        .select(`
+            id,
+            class_id,
+            student_id,
+            classes:class_id (
+                id,
+                teacher_id
+            )
+        `)
+        .eq('id', requestId)
+        .single()
+
+    if (requestError) {
+        console.error('Error fetching request:', requestError)
+        throw new Error('Failed to fetch request details')
+    }
+
+    const classData = (request.classes as unknown as Database['public']['Tables']['classes']['Row'])
+
+    // Verify the teacher owns the class
+    if (classData.teacher_id !== user.id) {
+        throw new Error('You can only handle requests for your own classes')
+    }
+
+    if (action === 'approve') {
+        // Create the enrollment
+        const { error: enrollError } = await supabase
+            .from('class_enrollments')
+            .insert({
+                class_id: request.class_id,
+                student_id: request.student_id,
+                enrolled_at: new Date().toISOString()
+            })
+
+        if (enrollError) {
+            console.error('Error enrolling student:', enrollError)
+            throw new Error('Failed to enroll student')
+        }
+    }
+
+    // Update the request status
+    const { error: updateError } = await supabase
+        .from('enrollment_requests')
+        .update({
+            status: action === 'approve' ? 'approved' : 'rejected',
+            response_message: reason,
+            responded_at: new Date().toISOString()
+        })
+        .eq('id', requestId)
+
+    if (updateError) {
+        console.error('Error updating request:', updateError)
+        throw new Error('Failed to update request status')
+    }
+
+    // Revalidate the classes page
+    revalidatePath('/dashboard/classes')
+
+    return { success: true }
+}
+
+/**
+ * Get enrollment requests for a teacher's classes
+ */
+export async function getEnrollmentRequests() {
+    const user = await requireServerAuth()
+    const supabase = await getSupabase()
+
+    if (user.role !== 'TEACHER') {
+        return []
+    }
+
+    const { data: requests, error: requestError } = await supabase
+        .from('enrollment_requests')
+        .select(`
+            id,
+            message,
+            status,
+            requested_at,
+            responded_at,
+            response_message,
+            class_id (
+                id,
+                name
+            ),
+            student_id (
+                id,
+                name,
+                avatar_url
+            )
+        `)
+        .eq('status', 'pending')
+        .order('requested_at', { ascending: false })
+
+    if (requestError) {
+        console.error('Error fetching enrollment requests:', requestError)
+        return []
+    }
+
+    return requests
 } 
