@@ -398,6 +398,7 @@ export async function getClassById(classId: string) {
             image,
             meeting_url,
             contact_group,
+            schedule,
             teacher_id (
                 id,
                 name,
@@ -461,7 +462,7 @@ export async function getClassById(classId: string) {
         meetingUrl: classData.meeting_url,
         contactGroup: classData.contact_group,
         level: "Intermediate (B1-B2)",
-        schedule: "Tuesdays and Thursdays, 6:00 PM - 8:00 PM",
+        schedule: classData.schedule,
         learningMethod: "Hybrid",
         location: "Main Campus, Room 204",
         totalStudents: students.length,

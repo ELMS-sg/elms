@@ -4,6 +4,9 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 import { getClassById, updateContactGroup } from "@/lib/class-actions"
 import { requireServerAuth } from "@/lib/actions"
+import { markAttendance, getClassAttendance } from "@/lib/attendance-actions"
+import { generateClassDates, getTodayClassDate } from "@/lib/date-utils"
+import { formatDisplayDate } from "@/lib/utils"
 import {
     Calendar,
     Users,
@@ -18,6 +21,7 @@ import {
     Edit2,
 } from "lucide-react"
 import { Avatar } from "@/components/Avatar"
+import { AttendanceSelect } from "@/components/AttendanceSelect"
 
 type Props = {
     params: { id: string }
@@ -77,8 +81,11 @@ export default async function ClassDetailPage({ params }: Props) {
     const id = await Promise.resolve(params.id)
     const user = await requireServerAuth()
 
-    // Get class data from the database
-    const classData = await getClassById(id)
+    // Get class data and attendance records from the database
+    const [classData, attendanceRecords] = await Promise.all([
+        getClassById(id),
+        getClassAttendance(id)
+    ])
 
     // If class not found, show 404 page
     if (!classData) {
@@ -86,6 +93,13 @@ export default async function ClassDetailPage({ params }: Props) {
     }
 
     const isTeacher = user.role === 'TEACHER' && user.id === (classData.teacherId as any).id
+
+    // Create a map of attendance records for quick lookup
+    const attendanceMap = attendanceRecords.reduce((acc, record) => {
+        const key = `${record.student_id}-${record.date}`
+        acc[key] = record.status
+        return acc
+    }, {} as Record<string, string>)
 
     return (
         <div className="container mx-auto px-4 py-8">
@@ -196,28 +210,96 @@ export default async function ClassDetailPage({ params }: Props) {
                             <h2 className="text-xl font-bold text-gray-900">Students</h2>
                             <span className="text-sm text-gray-500">{classData.totalStudents} / {classData.maxStudents}</span>
                         </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 gap-4">
                             {classData.students.map((student) => (
-                                <div key={student.id} className="flex items-center p-3 bg-gray-50 rounded-lg">
-                                    <div className="w-10 h-10 rounded-full bg-primary-100 text-primary-600 flex items-center justify-center mr-3 flex-shrink-0">
-                                        {student.avatar ? (
-                                            <Image
-                                                src={student.avatar}
-                                                alt={student.name}
-                                                width={40}
-                                                height={40}
-                                                className="rounded-full"
-                                            />
-                                        ) : (
-                                            <span className="font-medium text-sm">
-                                                {student.name.split(' ').map(n => n[0]).join('')}
-                                            </span>
-                                        )}
+                                <div key={student.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                    <div className="flex items-center">
+                                        <div className="w-10 h-10 rounded-full bg-primary-100 text-primary-600 flex items-center justify-center mr-3 flex-shrink-0">
+                                            {student.avatar ? (
+                                                <Image
+                                                    src={student.avatar}
+                                                    alt={student.name}
+                                                    width={40}
+                                                    height={40}
+                                                    className="rounded-full"
+                                                />
+                                            ) : (
+                                                <span className="font-medium text-sm">
+                                                    {student.name.split(' ').map(n => n[0]).join('')}
+                                                </span>
+                                            )}
+                                        </div>
+                                        <div>
+                                            <p className="font-medium text-gray-900">{student.name}</p>
+                                            <p className="text-xs text-gray-500">Student</p>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <p className="font-medium text-gray-900">{student.name}</p>
-                                        <p className="text-xs text-gray-500">Student</p>
-                                    </div>
+                                    {isTeacher && (
+                                        <div className="flex flex-col gap-3">
+                                            {(() => {
+                                                const todayClassDate = getTodayClassDate(
+                                                    classData.schedule,
+                                                    classData.startDate,
+                                                    classData.endDate
+                                                )
+
+                                                if (!todayClassDate) {
+                                                    return (
+                                                        <div className="text-sm text-gray-500 italic">
+                                                            No class scheduled for today
+                                                        </div>
+                                                    )
+                                                }
+
+                                                const todayAttendance = attendanceMap[`${student.id}-${todayClassDate}`] || 'present'
+
+                                                return (
+                                                    <div className="flex flex-wrap items-start gap-6">
+                                                        <AttendanceSelect
+                                                            defaultValue={todayAttendance}
+                                                            onSubmit={async (status) => {
+                                                                'use server'
+                                                                await markAttendance(id, student.id, todayClassDate, status)
+                                                            }}
+                                                        />
+                                                        <div className="flex-1 min-w-[200px]">
+                                                            <div className="text-xs text-gray-500 mb-2">Previous Attendance:</div>
+                                                            <div className="flex flex-wrap gap-2">
+                                                                {generateClassDates(classData.schedule, classData.startDate, classData.endDate)
+                                                                    .filter(date => {
+                                                                        const todayClassDate = getTodayClassDate(
+                                                                            classData.schedule,
+                                                                            classData.startDate,
+                                                                            classData.endDate
+                                                                        )
+                                                                        return date < (todayClassDate || '')
+                                                                    })
+                                                                    .map((date) => {
+                                                                        const status = attendanceMap[`${student.id}-${date}`] || 'present'
+                                                                        if (!status) return null
+                                                                        return (
+                                                                            <div
+                                                                                key={date}
+                                                                                className={`
+                                                                                    inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium
+                                                                                    ${status === 'present'
+                                                                                        ? 'bg-green-50 text-green-700 ring-1 ring-green-600/20'
+                                                                                        : 'bg-red-50 text-red-700 ring-1 ring-red-600/20'
+                                                                                    }
+                                                                                `}
+                                                                            >
+                                                                                <span className={`w-1.5 h-1.5 rounded-full ${status === 'present' ? 'bg-green-600' : 'bg-red-600'}`} />
+                                                                                {formatDisplayDate(date)}
+                                                                            </div>
+                                                                        )
+                                                                    })}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                )
+                                            })()}
+                                        </div>
+                                    )}
                                 </div>
                             ))}
                         </div>
