@@ -399,6 +399,10 @@ export async function getClassById(classId: string) {
             meeting_url,
             contact_group,
             schedule,
+            learning_method,
+            max_students,
+            enrolled_count,
+            tags,
             teacher_id (
                 id,
                 name,
@@ -427,7 +431,8 @@ export async function getClassById(classId: string) {
             student_id,
             users!class_enrollments_student_id_fkey (
                 id,
-                name
+                name,
+                avatar_url
             )
         `)
         .eq('class_id', classId)
@@ -438,12 +443,11 @@ export async function getClassById(classId: string) {
 
     // Format the students data
     const students = enrollments ? enrollments.map(enrollment => {
-        // Use type assertion to tell TypeScript that users is a single object, not an array
         const userData = enrollment.users as any;
         return {
             id: userData.id,
             name: userData.name,
-            avatar: null // This would need to be added to the database in a real implementation
+            avatar: userData.avatar_url
         };
     }) : []
 
@@ -454,34 +458,20 @@ export async function getClassById(classId: string) {
         description: classData.description,
         teacher: (classData.users as any).name,
         teacherId: classData.teacher_id,
-        teacherTitle: "IELTS Examiner & Senior Instructor",
+        teacherTitle: "Instructor", // This could be added to the users table in the future
         teacherImage: (classData.teacher_id as any).avatar_url,
         startDate: formatDate(classData.start_date),
         endDate: formatDate(classData.end_date),
         image: classData.image,
         meetingUrl: classData.meeting_url,
         contactGroup: classData.contact_group,
-        level: "Intermediate (B1-B2)",
+        level: "Intermediate", // This could be added to the classes table in the future
         schedule: classData.schedule,
-        learningMethod: "Hybrid",
-        location: "Main Campus, Room 204",
+        learningMethod: classData.learning_method,
+        location: classData.learning_method === 'OFFLINE' ? "Main Campus" : "Online",
         totalStudents: students.length,
-        maxStudents: 20,
-        tags: ["IELTS", "Academic"],
-        syllabus: [
-            "Week 1-2: Introduction to IELTS & Listening Skills",
-            "Week 3-4: Reading Strategies & Practice",
-            "Week 5-6: Writing Task 1 - Charts and Graphs",
-            "Week 7-8: Writing Task 2 - Essays",
-            "Week 9-10: Speaking Parts 1-3",
-            "Week 11-12: Mock Tests & Final Review"
-        ],
-        materials: [
-            "Official IELTS Practice Materials",
-            "Cambridge IELTS 15-17",
-            "Custom Vocabulary Workbook",
-            "Online Practice Tests"
-        ],
+        maxStudents: classData.max_students,
+        tags: classData.tags || [],
         students
     }
 }

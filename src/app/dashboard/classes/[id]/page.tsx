@@ -1,12 +1,22 @@
-import { Metadata } from "next"
+'use client'
+
 import Image from "next/image"
 import Link from "next/link"
-import { notFound } from "next/navigation"
-import { getClassById, updateContactGroup } from "@/lib/class-actions"
+import { notFound, useRouter } from "next/navigation"
+import { getClassById } from "@/lib/class-actions"
 import { requireServerAuth } from "@/lib/actions"
-import { markAttendance, getClassAttendance } from "@/lib/attendance-actions"
+import { getClassAttendance } from "@/lib/attendance-actions"
 import { generateClassDates, getTodayClassDate } from "@/lib/date-utils"
-import { formatDisplayDate } from "@/lib/utils"
+import { formatDisplayDate, formatBytes } from "@/lib/utils"
+import { getClassMaterials } from "@/lib/material-actions"
+import { toast } from "@/hooks/use-toast"
+import { useTransition, useEffect, useState, use } from 'react'
+import {
+    deleteMaterialAction,
+    uploadMaterialAction,
+    markAttendanceAction,
+    updateContactGroupAction
+} from "@/lib/server-actions"
 import {
     Calendar,
     Users,
@@ -16,15 +26,19 @@ import {
     Globe,
     FileText,
     MessageSquare,
-    CheckCircle,
     Video,
     Edit2,
+    Upload,
+    Download,
+    Trash2,
+    File
 } from "lucide-react"
 import { Avatar } from "@/components/Avatar"
 import { AttendanceSelect } from "@/components/AttendanceSelect"
+import { UploadMaterialDialog } from "@/components/UploadMaterialDialog"
 
 type Props = {
-    params: { id: string }
+    params: Promise<{ id: string }>
 }
 
 // Add type for class data
@@ -57,49 +71,90 @@ type ClassData = {
     }>;
 }
 
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
-    const id = await Promise.resolve(params.id)
-    const classData = await getClassById(id)
+export const dynamic = 'force-dynamic'
+
+async function fetchPageData(id: string) {
+    const [user, classData, attendanceRecords, materials] = await Promise.all([
+        requireServerAuth(),
+        getClassById(id),
+        getClassAttendance(id),
+        getClassMaterials(id)
+    ])
 
     if (!classData) {
-        return {
-            title: "Class Not Found | English Learning Center",
-            description: "The requested class could not be found",
-        }
+        return null
     }
 
     return {
-        title: `${classData.name} | English Learning Center`,
-        description: classData.description || "",
+        user,
+        classData,
+        attendanceRecords,
+        materials
     }
 }
 
-export const dynamic = 'force-dynamic'
+export default function ClassDetailPage({ params }: Props) {
+    const router = useRouter()
+    const [isPending, startTransition] = useTransition()
+    const [pageData, setPageData] = useState<any>(null)
+    const [loading, setLoading] = useState(true)
+    const resolvedParams = use(params)
 
-export default async function ClassDetailPage({ params }: Props) {
-    // Resolve the ID parameter
-    const id = await Promise.resolve(params.id)
-    const user = await requireServerAuth()
-
-    // Get class data and attendance records from the database
-    const [classData, attendanceRecords] = await Promise.all([
-        getClassById(id),
-        getClassAttendance(id)
-    ])
-
-    // If class not found, show 404 page
-    if (!classData) {
-        notFound()
+    const refreshData = async () => {
+        const data = await fetchPageData(resolvedParams.id)
+        if (data) {
+            setPageData(data)
+        }
     }
 
+    useEffect(() => {
+        const loadData = async () => {
+            const data = await fetchPageData(resolvedParams.id)
+            if (!data) {
+                notFound()
+            }
+            setPageData(data)
+            setLoading(false)
+        }
+        loadData()
+    }, [resolvedParams.id])
+
+    const handleDeleteMaterial = async (materialId: string) => {
+        if (!confirm('Are you sure you want to delete this material?')) {
+            return
+        }
+
+        console.log('Deleting material', materialId)
+
+        try {
+            await deleteMaterialAction(materialId)
+            toast({
+                title: "Success",
+                description: "Material deleted successfully",
+            })
+            router.refresh()
+        } catch (error) {
+            toast({
+                title: "Error",
+                description: "Failed to delete material",
+                variant: "destructive",
+            })
+        }
+    }
+
+    if (loading) {
+        return <div>Loading...</div>
+    }
+
+    const { user, classData, attendanceRecords, materials } = pageData
     const isTeacher = user.role === 'TEACHER' && user.id === (classData.teacherId as any).id
 
     // Create a map of attendance records for quick lookup
-    const attendanceMap = attendanceRecords.reduce((acc, record) => {
+    const attendanceMap = attendanceRecords.reduce((acc: any, record: any) => {
         const key = `${record.student_id}-${record.date}`
         acc[key] = record.status
         return acc
-    }, {} as Record<string, string>)
+    }, {})
 
     return (
         <div className="container mx-auto px-4 py-8">
@@ -178,30 +233,104 @@ export default async function ClassDetailPage({ params }: Props) {
             {/* Class Content */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <div className="lg:col-span-2 space-y-8">
-                    {/* Syllabus */}
-                    <div className="bg-white rounded-lg shadow-card p-6">
-                        <h2 className="text-xl font-bold text-gray-900 mb-4">Course Syllabus</h2>
-                        <ul className="space-y-3">
-                            {classData.syllabus.map((item, index) => (
-                                <li key={index} className="flex items-start">
-                                    <CheckCircle className="w-5 h-5 text-primary-600 mr-3 mt-0.5 flex-shrink-0" />
-                                    <span className="text-gray-700">{item}</span>
-                                </li>
-                            ))}
-                        </ul>
-                    </div>
+                    {/* Tags */}
+                    {classData.tags && classData.tags.length > 0 && (
+                        <div className="bg-white rounded-lg shadow-card p-6">
+                            <h2 className="text-xl font-bold text-gray-900 mb-4">Course Tags</h2>
+                            <div className="flex flex-wrap gap-2">
+                                {classData.tags.map((tag, index) => (
+                                    <span
+                                        key={index}
+                                        className="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium bg-primary-50 text-primary-700 ring-1 ring-primary-600/20"
+                                    >
+                                        {tag}
+                                    </span>
+                                ))}
+                            </div>
+                        </div>
+                    )}
 
-                    {/* Materials */}
+                    {/* Description */}
+                    {classData.description && (
+                        <div className="bg-white rounded-lg shadow-card p-6">
+                            <h2 className="text-xl font-bold text-gray-900 mb-4">Course Description</h2>
+                            <p className="text-gray-700 whitespace-pre-wrap">{classData.description}</p>
+                        </div>
+                    )}
+
+                    {/* Course Materials */}
                     <div className="bg-white rounded-lg shadow-card p-6">
-                        <h2 className="text-xl font-bold text-gray-900 mb-4">Course Materials</h2>
-                        <ul className="space-y-3">
-                            {classData.materials.map((item, index) => (
-                                <li key={index} className="flex items-start">
-                                    <FileText className="w-5 h-5 text-primary-600 mr-3 mt-0.5 flex-shrink-0" />
-                                    <span className="text-gray-700">{item}</span>
-                                </li>
-                            ))}
-                        </ul>
+                        <div className="flex justify-between items-center mb-4">
+                            <h2 className="text-xl font-bold text-gray-900">Course Materials</h2>
+                            {isTeacher && (
+                                <UploadMaterialDialog
+                                    onUpload={async (file, name, description) => {
+                                        await uploadMaterialAction(classData.id, file, name, description)
+                                    }}
+                                />
+                            )}
+                        </div>
+                        <div className="space-y-4">
+                            {materials.length === 0 ? (
+                                <div className="text-center py-8 text-gray-500">
+                                    No materials available yet
+                                </div>
+                            ) : (
+                                <div className="divide-y divide-gray-200">
+                                    {materials.map((material) => (
+                                        <div
+                                            key={material.id}
+                                            className="py-4 flex items-center justify-between"
+                                        >
+                                            <div className="flex items-start gap-4">
+                                                <div className="p-2 bg-gray-100 rounded">
+                                                    <File className="h-6 w-6 text-primary-600" />
+                                                </div>
+                                                <div>
+                                                    <h3 className="font-medium text-gray-900">
+                                                        {material.name}
+                                                    </h3>
+                                                    {material.description && (
+                                                        <p className="text-sm text-gray-500 mt-1">
+                                                            {material.description}
+                                                        </p>
+                                                    )}
+                                                    <div className="flex gap-4 mt-2 text-xs text-gray-500">
+                                                        <span>
+                                                            {formatBytes(material.file_size)}
+                                                        </span>
+                                                        <span>
+                                                            {new Date(material.uploaded_at).toLocaleDateString()}
+                                                        </span>
+                                                        <span>
+                                                            Uploaded by {(material.uploaded_by as any).name}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <a
+                                                    href={material.downloadUrl}
+                                                    download
+                                                    className="btn btn-sm btn-ghost"
+                                                >
+                                                    <Download className="h-4 w-4" />
+                                                </a>
+                                                {isTeacher && (
+                                                    <button
+                                                        onClick={() => handleDeleteMaterial(material.id)}
+                                                        disabled={isPending}
+                                                        className="btn btn-sm btn-ghost text-red-600 hover:text-red-700"
+                                                    >
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
                     </div>
 
                     {/* Students */}
@@ -258,8 +387,7 @@ export default async function ClassDetailPage({ params }: Props) {
                                                         <AttendanceSelect
                                                             defaultValue={todayAttendance}
                                                             onSubmit={async (status) => {
-                                                                'use server'
-                                                                await markAttendance(id, student.id, todayClassDate, status)
+                                                                await markAttendanceAction(classData.id, student.id, todayClassDate, status)
                                                             }}
                                                         />
                                                         <div className="flex-1 min-w-[200px]">
@@ -329,9 +457,8 @@ export default async function ClassDetailPage({ params }: Props) {
                                 <p className="text-sm text-gray-600 mb-3">{classData.teacherTitle}</p>
                                 {isTeacher ? (
                                     <form action={async (formData: FormData) => {
-                                        'use server'
                                         const contactGroup = formData.get('contactGroup') as string
-                                        await updateContactGroup(id, contactGroup)
+                                        await updateContactGroupAction(classData.id, contactGroup)
                                     }}>
                                         <div className="flex gap-2 mb-2">
                                             <input
@@ -370,14 +497,18 @@ export default async function ClassDetailPage({ params }: Props) {
                     <div className="bg-white rounded-lg shadow-card p-6">
                         <h2 className="text-xl font-bold text-gray-900 mb-4">Class Details</h2>
                         <div className="space-y-4">
-                            <div>
-                                <p className="text-sm text-gray-500 mb-1">Level</p>
-                                <p className="font-medium text-gray-900">{classData.level}</p>
-                            </div>
-                            <div>
-                                <p className="text-sm text-gray-500 mb-1">Schedule</p>
-                                <p className="font-medium text-gray-900">{classData.schedule}</p>
-                            </div>
+                            {classData.level && (
+                                <div>
+                                    <p className="text-sm text-gray-500 mb-1">Level</p>
+                                    <p className="font-medium text-gray-900">{classData.level}</p>
+                                </div>
+                            )}
+                            {classData.schedule && (
+                                <div>
+                                    <p className="text-sm text-gray-500 mb-1">Schedule</p>
+                                    <p className="font-medium text-gray-900">{classData.schedule}</p>
+                                </div>
+                            )}
                             <div>
                                 <p className="text-sm text-gray-500 mb-1">Learning Method</p>
                                 <p className="font-medium text-gray-900">{classData.learningMethod}</p>
