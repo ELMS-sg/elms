@@ -8,7 +8,7 @@ import { cache } from 'react'
 import { Database } from '@/types/supabase'
 
 // Helper function to get Supabase client - cached to avoid multiple instantiations
-const getSupabase = cache(() => {
+const getSupabase = cache(async () => {
     const cookieStore = cookies()
     return createRouteHandlerClient<Database>({ cookies: () => cookieStore })
 })
@@ -146,64 +146,3 @@ export async function getClassMaterials(classId: string) {
 /**
  * Delete a course material
  */
-export async function deleteMaterial(materialId: string) {
-    const user = await requireServerAuth()
-    const supabase = await getSupabase()
-
-    if (user.role !== 'TEACHER') {
-        throw new Error('Only teachers can delete materials')
-    }
-
-    // Get material details first
-    const { data: material, error: fetchError } = await supabase
-        .from('course_materials')
-        .select('file_path, class_id')
-        .eq('id', materialId)
-        .single()
-
-    if (fetchError || !material) {
-        throw new Error('Material not found')
-    }
-
-    // Verify the teacher owns the class
-    const { data: classData, error: classError } = await supabase
-        .from('classes')
-        .select('teacher_id')
-        .eq('id', material.class_id)
-        .single()
-
-    if (classError || !classData) {
-        throw new Error('Failed to verify class ownership')
-    }
-
-    if (classData.teacher_id !== user.id) {
-        throw new Error('You can only delete materials from your own classes')
-    }
-
-    // Delete the file from storage
-    const { error: storageError } = await supabase
-        .storage
-        .from('course-materials')
-        .remove([material.file_path])
-
-    if (storageError) {
-        console.error('Error deleting file:', storageError)
-        throw new Error('Failed to delete file')
-    }
-
-    // Delete the database record
-    const { error: dbError } = await supabase
-        .from('course_materials')
-        .delete()
-        .eq('id', materialId)
-
-    if (dbError) {
-        console.error('Error deleting material record:', dbError)
-        throw new Error('Failed to delete material record')
-    }
-
-    // Revalidate the class page
-    revalidatePath(`/dashboard/classes/${material.class_id}`)
-
-    return { success: true }
-} 

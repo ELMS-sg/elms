@@ -10,7 +10,7 @@ import { CalendarMeeting, MeetingType, MeetingStatus, Teacher, RelatedClass } fr
 import { formatDate, formatDisplayDate, formatTime, generateRecurringMeetings, formatMeetingDuration, parseSchedule } from './utils'
 
 // Helper function to get Supabase client - cached to avoid multiple instantiations
-const getSupabase = cache(() => {
+const getSupabase = cache(async () => {
     const cookieStore = cookies()
     return createRouteHandlerClient<Database>({ cookies: () => cookieStore })
 })
@@ -96,7 +96,7 @@ export interface Meeting {
  */
 export async function getUpcomingMeetings(): Promise<Meeting[]> {
     const user = await requireServerAuth()
-    const supabase = getSupabase()
+    const supabase = await getSupabase()
     const now = new Date()
 
     console.log("UPCOMING MEETINGS CALLED!!!")
@@ -330,7 +330,7 @@ export async function getUpcomingMeetings(): Promise<Meeting[]> {
 export async function getPastMeetings(): Promise<Meeting[]> {
     // Similar to getUpcomingMeetings but filter for past dates
     const user = await requireServerAuth()
-    const supabase = getSupabase()
+    const supabase = await getSupabase()
     const now = new Date()
 
     try {
@@ -348,7 +348,7 @@ export async function getPastMeetings(): Promise<Meeting[]> {
  */
 export async function getMeetingById(meetingId: string): Promise<Meeting | null> {
     const user = await requireServerAuth()
-    const supabase = getSupabase()
+    const supabase = await getSupabase()
 
     try {
         const { data, error } = await supabase
@@ -433,7 +433,7 @@ export async function scheduleMeeting(meetingData: {
     studentId?: string;
 }) {
     const user = await requireServerAuth()
-    const supabase = getSupabase()
+    const supabase = await getSupabase()
 
     try {
         const startTimeISO = new Date(meetingData.startTime).toISOString()
@@ -482,7 +482,7 @@ export async function scheduleMeeting(meetingData: {
  */
 export async function cancelMeeting(meetingId: string) {
     const user = await requireServerAuth()
-    const supabase = getSupabase()
+    const supabase = await getSupabase()
 
     try {
         // Update the meeting status to cancelled
@@ -512,7 +512,7 @@ export async function cancelMeeting(meetingId: string) {
  */
 export async function joinMeeting(meetingId: string) {
     const user = await requireServerAuth()
-    const supabase = getSupabase()
+    const supabase = await getSupabase()
 
     try {
         // Check if the user is already enrolled in this meeting
@@ -561,7 +561,7 @@ export async function joinMeeting(meetingId: string) {
  */
 export async function getAvailableTeachers() {
     const user = await requireServerAuth()
-    const supabase = getSupabase()
+    const supabase = await getSupabase()
 
     try {
         const { data, error } = await supabase
@@ -603,7 +603,7 @@ export async function getAvailableTeachers() {
  */
 export async function getTeacherAvailability(teacherId: string) {
     const user = await requireServerAuth()
-    const supabase = getSupabase()
+    const supabase = await getSupabase()
 
     try {
         const { data, error } = await supabase
@@ -634,7 +634,7 @@ export async function getTeacherAvailability(teacherId: string) {
  */
 export async function getAvailableMeetings(): Promise<Meeting[]> {
     const user = await requireServerAuth()
-    const supabase = getSupabase()
+    const supabase = await getSupabase()
 
     try {
         // Get current date in ISO format

@@ -8,7 +8,7 @@ import { cache } from 'react'
 import { Database } from '@/types/supabase'
 
 // Helper function to get Supabase client - cached to avoid multiple instantiations
-const getSupabase = cache(() => {
+const getSupabase = cache(async () => {
     const cookieStore = cookies()
     return createRouteHandlerClient<Database>({ cookies: () => cookieStore })
 })
@@ -18,7 +18,7 @@ const getSupabase = cache(() => {
  */
 export async function markAttendance(classId: string, studentId: string, date: string, status: 'present' | 'absent') {
     const user = await requireServerAuth()
-    const supabase = getSupabase()
+    const supabase = await getSupabase()
 
     // Only teachers can mark attendance
     if (user.role !== 'TEACHER') {
@@ -41,7 +41,6 @@ export async function markAttendance(classId: string, studentId: string, date: s
         throw new Error('You can only mark attendance for your own classes')
     }
 
-    // Check if attendance record already exists
     const { data: existingRecord, error: checkError } = await supabase
         .from('attendance')
         .select('id')
@@ -52,7 +51,6 @@ export async function markAttendance(classId: string, studentId: string, date: s
 
     try {
         if (existingRecord) {
-            // Update existing record
             const { error: updateError } = await supabase
                 .from('attendance')
                 .update({ status })
@@ -60,7 +58,6 @@ export async function markAttendance(classId: string, studentId: string, date: s
 
             if (updateError) throw updateError
         } else {
-            // Create new record
             const { error: insertError } = await supabase
                 .from('attendance')
                 .insert({
@@ -89,7 +86,7 @@ export async function markAttendance(classId: string, studentId: string, date: s
  */
 export async function getClassAttendance(classId: string) {
     const user = await requireServerAuth()
-    const supabase = getSupabase()
+    const supabase = await getSupabase()
 
     const { data, error } = await supabase
         .from('attendance')

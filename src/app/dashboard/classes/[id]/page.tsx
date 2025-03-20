@@ -9,11 +9,8 @@ import { getClassAttendance } from "@/lib/attendance-actions"
 import { generateClassDates, getTodayClassDate } from "@/lib/date-utils"
 import { formatDisplayDate, formatBytes } from "@/lib/utils"
 import { getClassMaterials } from "@/lib/material-actions"
-import { toast } from "@/hooks/use-toast"
 import { useTransition, useEffect, useState, use } from 'react'
 import {
-    deleteMaterialAction,
-    uploadMaterialAction,
     markAttendanceAction,
     updateContactGroupAction
 } from "@/lib/server-actions"
@@ -100,12 +97,6 @@ export default function ClassDetailPage({ params }: Props) {
     const [loading, setLoading] = useState(true)
     const resolvedParams = use(params)
 
-    const refreshData = async () => {
-        const data = await fetchPageData(resolvedParams.id)
-        if (data) {
-            setPageData(data)
-        }
-    }
 
     useEffect(() => {
         const loadData = async () => {
@@ -118,29 +109,6 @@ export default function ClassDetailPage({ params }: Props) {
         }
         loadData()
     }, [resolvedParams.id])
-
-    const handleDeleteMaterial = async (materialId: string) => {
-        if (!confirm('Are you sure you want to delete this material?')) {
-            return
-        }
-
-        console.log('Deleting material', materialId)
-
-        try {
-            await deleteMaterialAction(materialId)
-            toast({
-                title: "Success",
-                description: "Material deleted successfully",
-            })
-            router.refresh()
-        } catch (error) {
-            toast({
-                title: "Error",
-                description: "Failed to delete material",
-                variant: "destructive",
-            })
-        }
-    }
 
     if (loading) {
         return <div>Loading...</div>
@@ -264,8 +232,9 @@ export default function ClassDetailPage({ params }: Props) {
                             <h2 className="text-xl font-bold text-gray-900">Course Materials</h2>
                             {isTeacher && (
                                 <UploadMaterialDialog
-                                    onUpload={async (file, name, description) => {
-                                        await uploadMaterialAction(classData.id, file, name, description)
+                                    classId={resolvedParams.id}
+                                    onSuccess={() => {
+                                        window.location.reload();
                                     }}
                                 />
                             )}
@@ -316,15 +285,6 @@ export default function ClassDetailPage({ params }: Props) {
                                                 >
                                                     <Download className="h-4 w-4" />
                                                 </a>
-                                                {isTeacher && (
-                                                    <button
-                                                        onClick={() => handleDeleteMaterial(material.id)}
-                                                        disabled={isPending}
-                                                        className="btn btn-sm btn-ghost text-red-600 hover:text-red-700"
-                                                    >
-                                                        <Trash2 className="h-4 w-4" />
-                                                    </button>
-                                                )}
                                             </div>
                                         </div>
                                     ))}
@@ -341,7 +301,7 @@ export default function ClassDetailPage({ params }: Props) {
                         </div>
                         <div className="grid grid-cols-1 gap-4">
                             {classData.students.map((student) => (
-                                <div key={student.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                <div key={student.id} className="flex md:items-center flex-col md:flex-row gap-4 md:gap-0 justify-between p-3 bg-gray-50 rounded-lg">
                                     <div className="flex items-center">
                                         <div className="w-10 h-10 rounded-full bg-primary-100 text-primary-600 flex items-center justify-center mr-3 flex-shrink-0">
                                             {student.avatar ? (
@@ -383,7 +343,7 @@ export default function ClassDetailPage({ params }: Props) {
                                                 const todayAttendance = attendanceMap[`${student.id}-${todayClassDate}`] || 'present'
 
                                                 return (
-                                                    <div className="flex flex-wrap items-start gap-6">
+                                                    <div className="flex flex-wrap items-center gap-6">
                                                         <AttendanceSelect
                                                             defaultValue={todayAttendance}
                                                             onSubmit={async (status) => {

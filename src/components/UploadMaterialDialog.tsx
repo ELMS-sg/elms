@@ -8,13 +8,16 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Upload, X, FileText } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { toast } from '@/hooks/use-toast'
+import { uploadMaterial } from '@/lib/material-actions'
 
 interface Props {
-    onUpload: (file: File, name: string, description: string) => Promise<void>
+    classId: string
+    onSuccess?: () => void
     trigger?: React.ReactNode
 }
 
-export function UploadMaterialDialog({ onUpload, trigger }: Props) {
+export function UploadMaterialDialog({ classId, onSuccess, trigger }: Props) {
     const [open, setOpen] = useState(false)
     const [uploading, setUploading] = useState(false)
     const [name, setName] = useState('')
@@ -49,14 +52,41 @@ export function UploadMaterialDialog({ onUpload, trigger }: Props) {
 
         try {
             setUploading(true)
-            await onUpload(file, name, description)
+
+            toast({
+                title: "Uploading...",
+                description: "Please wait while we upload your material"
+            });
+
+            const result = await uploadMaterial(classId, file, name, description);
+
+            toast({
+                title: "Success",
+                description: "Material uploaded successfully"
+            });
+
+            // Close dialog
             setOpen(false)
+
             // Reset form
             setFile(null)
             setName('')
             setDescription('')
+
+            if (onSuccess) {
+                onSuccess()
+            } else {
+                // Force page refresh
+                window.location.reload()
+            }
         } catch (error) {
             console.error('Upload failed:', error)
+
+            toast({
+                title: "Error",
+                description: error instanceof Error ? error.message : "An unexpected error occurred",
+                variant: "destructive"
+            });
         } finally {
             setUploading(false)
         }
@@ -81,7 +111,7 @@ export function UploadMaterialDialog({ onUpload, trigger }: Props) {
                         {...getRootProps()}
                         className={cn(
                             "border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors",
-                            isDragActive ? "border-primary bg-primary/5" : "border-gray-200 hover:border-primary/50",
+                            isDragActive ? "border-primary bg-white" : "border-gray-200 hover:border-primary/50",
                             file && "border-green-500 bg-green-50"
                         )}
                     >
@@ -148,7 +178,6 @@ export function UploadMaterialDialog({ onUpload, trigger }: Props) {
                         </Button>
                         <Button
                             type="submit"
-                            variant='outline'
                             disabled={!file || !name || uploading}
                             className='bg-blue-500 text-white'
                         >

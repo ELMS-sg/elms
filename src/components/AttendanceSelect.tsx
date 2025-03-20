@@ -17,8 +17,8 @@ export function AttendanceSelect({ defaultValue, onSubmit }: AttendanceSelectPro
                     }}
                     className="select select-bordered w-full py-2 bg-white text-sm font-medium"
                 >
-                    <option value="present" className="text-green-600">✓ Present</option>
-                    <option value="absent" className="text-red-600">✗ Absent</option>
+                    <option value="present" className="text-green-400">✓ Present</option>
+                    <option value="absent" className="text-red-400">✗ Absent</option>
                 </select>
                 <span className="text-xs text-gray-500 whitespace-nowrap">Today</span>
             </div>
