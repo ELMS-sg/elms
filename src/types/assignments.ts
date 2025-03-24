@@ -2,7 +2,7 @@ import { Database } from './supabase'
 
 // Base types from database
 export type AssignmentRow = Database['public']['Tables']['assignments']['Row']
-export type SubmissionRow = Database['public']['Tables']['submissions']['Row']
+export type SubmissionRow = Database['public']['Tables']['assignment_submissions']['Row']
 export type AssignmentFileRow = Database['public']['Tables']['assignment_files']['Row']
 export type SubmissionFileRow = Database['public']['Tables']['submission_files']['Row']
 
@@ -54,7 +54,7 @@ export type AssignmentFormData = {
     class_id: string
     due_date: string
     points: number
-    assignment_type: 'essay' | 'exercise' | 'quiz' | 'recording' | 'other'
+    assignment_type?: 'essay' | 'exercise' | 'quiz' | 'recording' | 'other'
     files?: File[]
 }
 
@@ -63,6 +63,7 @@ export type SubmissionFormData = {
     assignment_id: string
     files?: File[]
     notes?: string
+    content?: string
 }
 
 // Grading form data

@@ -16,6 +16,7 @@ import Image from "next/image"
 import { redirect } from "next/navigation"
 import { Avatar } from "@/components/Avatar"
 import { getUserProfile } from "@/lib/user-actions"
+import { getSupabaseRouteHandler } from "@/lib/supabase/client"
 
 export const dynamic = "force-dynamic"
 
@@ -54,6 +55,26 @@ export default async function DashboardPage({
     const _user = await requireServerAuth()
     const user = await getUserProfile(_user.id)
     const isTeacher = user.role === 'TEACHER'
+
+    // Debug enrollments
+    if (!isTeacher) {
+        console.log("Dashboard: Student user detected, checking enrollments")
+        const supabase = await getSupabaseRouteHandler()
+        const { data: enrollments, error: enrollmentError } = await supabase
+            .from('class_enrollments')
+            .select('*')
+            .eq('student_id', user.id)
+
+        console.log("Dashboard: Student enrollments count:", enrollments?.length || 0)
+        if (enrollmentError) {
+            console.error("Dashboard: Error fetching enrollments:", enrollmentError)
+        }
+        if (enrollments && enrollments.length > 0) {
+            console.log("Dashboard: First enrollment:", JSON.stringify(enrollments[0]))
+        } else {
+            console.log("Dashboard: No enrollments found for student")
+        }
+    }
 
     // Mock data for dashboard statistics - different for teachers and students
     const stats = isTeacher ? [

@@ -42,7 +42,7 @@ export default async function SubmitAssignmentPage({ params }: SubmitAssignmentP
     }
 
     // Check if assignment already has a graded submission
-    if (assignment.submission?.status === 'graded') {
+    if (assignment.submission?.grade) {
         return (
             <div className="container mx-auto px-4 py-8">
                 <div className="bg-yellow-50 text-yellow-700 p-4 rounded-lg">

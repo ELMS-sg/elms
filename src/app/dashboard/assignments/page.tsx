@@ -51,7 +51,7 @@ export default async function AssignmentsPage() {
 
         // Filter assignments by status
         pendingAssignments = studentAssignments.filter(
-            a => a.status === 'pending' || a.status === 'overdue'
+            a => a.status === 'pending' || a.status === 'overdue' || a.status === 'submitted'
         )
         completedAssignments = studentAssignments.filter(
             a => a.status === 'completed'
@@ -342,7 +342,9 @@ export default async function AssignmentsPage() {
                                         }`}>
                                         {assignment.isOverdue
                                             ? "Overdue"
-                                            : assignment.assignment_type.charAt(0).toUpperCase() + assignment.assignment_type.slice(1)
+                                            : assignment.assignment_type
+                                                ? assignment.assignment_type.charAt(0).toUpperCase() + assignment.assignment_type.slice(1)
+                                                : "Assignment"
                                         }
                                     </span>
                                     <span className="text-sm text-gray-500 flex items-center">
@@ -408,26 +410,28 @@ export default async function AssignmentsPage() {
                                     <span className="font-medium text-gray-700">Points: {assignment.points}</span>
                                 </div>
                             </div>
-                            <div className="border-t border-gray-100 p-4 bg-gray-50 flex justify-between">
+                            <div className="flex justify-between px-6 pb-4 gap-2">
                                 <Link
                                     href={`/dashboard/assignments/${assignment.id}`}
-                                    className="btn btn-outline flex-1 mr-2"
+                                    className="btn btn-outline flex-1"
                                 >
                                     View Details
                                 </Link>
                                 {!isTeacher && (
                                     <Link
                                         href={`/dashboard/assignments/${assignment.id}/submit`}
-                                        className="btn btn-primary flex-1"
+                                        className="btn btn-primary flex items-center justify-center gap-2"
                                     >
-                                        <Upload className="w-4 h-4 mr-2" />
-                                        Submit
+                                        <Upload className="w-4 h-4" />
+                                        <span>
+                                            Submit
+                                        </span>
                                     </Link>
                                 )}
                                 {isTeacher && (
                                     <Link
                                         href={`/dashboard/assignments/${assignment.id}/edit`}
-                                        className="btn btn-primary flex-1"
+                                        className="btn btn-primary"
                                     >
                                         Edit
                                     </Link>
