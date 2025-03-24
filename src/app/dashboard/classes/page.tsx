@@ -2,7 +2,7 @@ import { Metadata } from "next"
 import Image from "next/image"
 import Link from "next/link"
 import { requireServerAuth } from "@/lib/actions"
-import { getStudentClasses, getTeacherClasses } from "@/lib/class-actions"
+import { getStudentClasses, getTeacherClasses, requestEnrollment, handleEnrollmentRequest, getEnrollmentRequests } from "@/lib/class-actions"
 import {
     BookOpen,
     Search,
@@ -17,6 +17,18 @@ import {
     Plus,
     BarChart
 } from "lucide-react"
+import { Database } from "@/types/supabase"
+
+type EnrollmentRequest = {
+    id: string;
+    message: string | null;
+    status: Database['public']['Tables']['enrollment_requests']['Row']['status'];
+    requested_at: string;
+    responded_at: string | null;
+    response_message: string | null;
+    student_id: Database['public']['Tables']['users']['Row'];
+    class_id: Pick<Database['public']['Tables']['classes']['Row'], 'id' | 'name'>;
+}
 
 export const metadata: Metadata = {
     title: "My Classes | English Learning Center",
@@ -37,6 +49,9 @@ export default async function ClassesPage() {
     } else if (user.role === 'TEACHER') {
         enrolledClasses = await getTeacherClasses()
     }
+
+    // Get enrollment requests if user is a teacher
+    const enrollmentRequests = isTeacher ? (await getEnrollmentRequests() as unknown as EnrollmentRequest[]) : []
 
     // Generate categories based on the actual classes
     const allClassesCount = enrolledClasses.length
@@ -142,6 +157,78 @@ export default async function ClassesPage() {
                     </button>
                 </div>
             </div>
+
+            {/* Enrollment Requests Section for Teachers */}
+            {isTeacher && enrollmentRequests.length > 0 && (
+                <div className="mb-12 bg-white rounded-lg shadow-card p-6">
+                    <h2 className="text-xl font-bold text-gray-900 mb-4">Enrollment Requests</h2>
+                    <div className="space-y-4">
+                        {enrollmentRequests.map((request) => (
+                            <div key={request.id} className="bg-gray-50 rounded-lg p-4">
+                                <div className="flex items-start justify-between">
+                                    <div className="flex items-center">
+                                        <div className="w-10 h-10 rounded-full bg-primary-100 text-primary-600 flex items-center justify-center mr-3 flex-shrink-0">
+                                            {request.student_id.avatar_url ? (
+                                                <Image
+                                                    src={request.student_id.avatar_url}
+                                                    alt={request.student_id.name}
+                                                    width={40}
+                                                    height={40}
+                                                    className="rounded-full"
+                                                />
+                                            ) : (
+                                                <span className="font-medium text-sm">
+                                                    {request.student_id.name.split(' ').map(n => n[0]).join('')}
+                                                </span>
+                                            )}
+                                        </div>
+                                        <div>
+                                            <p className="font-medium text-gray-900">{request.student_id.name}</p>
+                                            <p className="text-sm text-gray-500">
+                                                Requested to join {request.class_id.name}
+                                            </p>
+                                            {request.message && (
+                                                <p className="text-sm text-gray-600 mt-1">
+                                                    "{request.message}"
+                                                </p>
+                                            )}
+                                            <p className="text-xs text-gray-400 mt-1">
+                                                {new Date(request.requested_at).toLocaleDateString()}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <form action={async () => {
+                                            'use server'
+                                            await handleEnrollmentRequest(request.id, 'approve')
+                                        }}>
+                                            <button className="btn btn-sm btn-primary">
+                                                Approve
+                                            </button>
+                                        </form>
+                                        <form action={async (formData: FormData) => {
+                                            'use server'
+                                            const reason = formData.get('reason') as string
+                                            await handleEnrollmentRequest(request.id, 'reject', reason)
+                                        }}>
+                                            <input
+                                                type="text"
+                                                name="reason"
+                                                placeholder="Reason for rejection"
+                                                className="input input-sm mr-2"
+                                                required
+                                            />
+                                            <button className="btn btn-sm btn-error">
+                                                Reject
+                                            </button>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
 
             {/* Classes Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -293,62 +380,6 @@ export default async function ClassesPage() {
                             <div>
                                 <p className="text-sm text-gray-500">Average Attendance</p>
                                 <p className="text-2xl font-bold text-gray-900">92%</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* Stats Section */}
-            {enrolledClasses.length > 0 && (
-                <div className="mt-12 grid grid-cols-1 md:grid-cols-4 gap-6">
-                    <div className="bg-white rounded-lg shadow-card p-5">
-                        <div className="flex items-center">
-                            <div className="p-3 rounded-md bg-primary-50 text-primary-600 mr-4">
-                                <BookOpen className="h-5 w-5" />
-                            </div>
-                            <div>
-                                <p className="text-sm text-gray-500">
-                                    {user.role === 'STUDENT' ? 'Enrolled Classes' : 'Teaching Classes'}
-                                </p>
-                                <p className="text-xl font-semibold text-gray-900">{enrolledClasses.length}</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div className="bg-white rounded-lg shadow-card p-5">
-                        <div className="flex items-center">
-                            <div className="p-3 rounded-md bg-green-50 text-green-600 mr-4">
-                                <Clock className="h-5 w-5" />
-                            </div>
-                            <div>
-                                <p className="text-sm text-gray-500">Hours of Learning</p>
-                                <p className="text-xl font-semibold text-gray-900">{enrolledClasses.length * 24}</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div className="bg-white rounded-lg shadow-card p-5">
-                        <div className="flex items-center">
-                            <div className="p-3 rounded-md bg-blue-50 text-blue-600 mr-4">
-                                <Calendar className="h-5 w-5" />
-                            </div>
-                            <div>
-                                <p className="text-sm text-gray-500">Upcoming Classes</p>
-                                <p className="text-xl font-semibold text-gray-900">{Math.ceil(enrolledClasses.length / 2)}</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div className="bg-white rounded-lg shadow-card p-5">
-                        <div className="flex items-center">
-                            <div className="p-3 rounded-md bg-purple-50 text-purple-600 mr-4">
-                                <Users className="h-5 w-5" />
-                            </div>
-                            <div>
-                                <p className="text-sm text-gray-500">
-                                    {user.role === 'STUDENT' ? 'Fellow Students' : 'Total Students'}
-                                </p>
-                                <p className="text-xl font-semibold text-gray-900">
-                                    {enrolledClasses.reduce((total, cls) => total + cls.totalStudents, 0)}
-                                </p>
                             </div>
                         </div>
                     </div>

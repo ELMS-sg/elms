@@ -6,14 +6,14 @@ import { Database } from '@/types/supabase'
 
 // Create a server client that uses cookies for session management
 // Using cache to avoid multiple instantiations of the Supabase client
-export const getSupabaseServerClient = cache(() => {
+export const getSupabaseServerClient = cache(async () => {
     const cookieStore = cookies()
     return createRouteHandlerClient<Database>({ cookies: () => cookieStore })
 })
 
 export async function getSession() {
     try {
-        const supabase = getSupabaseServerClient()
+        const supabase = await getSupabaseServerClient()
         const { data: { session }, error } = await supabase.auth.getSession()
 
         if (error) {

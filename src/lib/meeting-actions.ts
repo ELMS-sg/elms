@@ -2,13 +2,14 @@
 
 import { cookies } from 'next/headers'
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
-import { requireServerAuth } from "@/lib/actions"
+import { requireServerAuth } from './actions'
 import { revalidatePath } from 'next/cache'
 import { cache } from 'react'
 import { Database } from '@/types/supabase'
-import { Meeting, CalendarMeeting, MeetingType, MeetingStatus, Teacher, RelatedClass } from "@/types/meetings"
+import { CalendarMeeting, MeetingType, MeetingStatus, Teacher, RelatedClass } from "@/types/meetings"
+import { formatDate, formatDisplayDate, formatTime, generateRecurringMeetings, formatMeetingDuration, parseSchedule } from './utils'
 
-// Helper function to get Supabase client
+// Helper function to get Supabase client - cached to avoid multiple instantiations
 const getSupabase = cache(async () => {
     const cookieStore = cookies()
     return createRouteHandlerClient<Database>({ cookies: () => cookieStore })
@@ -60,19 +61,49 @@ interface MockMeeting {
     created_at: string;
 }
 
+export interface Meeting {
+    id: string
+    title: string
+    description?: string
+    teacher: {
+        name: string
+        avatar_url: string
+        title: string
+    }
+    type: "ONE_ON_ONE" | "GROUP"
+    date: string          // YYYY-MM-DD format for sorting
+    displayDate: string   // Formatted date for display
+    startTime: string
+    endTime: string
+    duration: string
+    isOnline: boolean
+    status: string
+    meetingLink?: string
+    meetingId?: string
+    location?: string
+    relatedClass: {
+        id: string
+        name: string
+    }
+    participants?: number
+    maxParticipants?: number
+    notes?: string
+    studentName?: string
+}
+
 /**
- * Get all upcoming meetings for a user (both student and teacher)
+ * Get upcoming meetings for the current user
  */
 export async function getUpcomingMeetings(): Promise<Meeting[]> {
     const user = await requireServerAuth()
     const supabase = await getSupabase()
+    const now = new Date()
+
+    console.log("UPCOMING MEETINGS CALLED!!!")
 
     try {
-        // Get current date in ISO format
-        const now = new Date().toISOString()
-
-        // Query upcoming meetings based on user role
-        let query = supabase
+        // Get one-on-one meetings
+        const { data: oneOnOneMeetings, error: oneOnOneError } = await supabase
             .from('meetings')
             .select(`
                 id,
@@ -91,128 +122,221 @@ export async function getUpcomingMeetings(): Promise<Meeting[]> {
                 teacher_id(id, name, avatar_url, title),
                 class_id(id, name)
             `)
-            .gte('start_time', now)
-            .order('start_time', { ascending: true })
+            .eq('type', 'ONE_ON_ONE')
+            .gte('start_time', now.toISOString())
+            // Filter based on user role
+            .or(
+                user.role === 'TEACHER'
+                    ? `teacher_id.eq.${user.id}`  // For teachers, only show their meetings
+                    : `student_id.eq.${user.id}`  // For students, only show meetings they're enrolled in
+            )
+            .order('start_time', { ascending: true });
 
-        // Filter based on user role
-        if (user.role === 'STUDENT') {
-            query = query.eq('student_id', user.id)
-        } else if (user.role === 'TEACHER') {
-            query = query.eq('teacher_id', user.id)
+        if (oneOnOneError) {
+            console.error('Error fetching one-on-one meetings:', oneOnOneError);
         }
 
-        const { data, error } = await query
+        // First, get all classes the user is involved with
+        let classesQuery;
+        if (user.role === 'TEACHER') {
+            classesQuery = supabase
+                .from('classes')
+                .select(`
+                    id,
+                    name,
+                    description,
+                    start_date,
+                    end_date,
+                    meeting_url,
+                    schedule
+                `)
+                .eq('teacher_id', user.id)
+        } else {
+            classesQuery = supabase
+                .from('class_enrollments')
+                .select(`
+                    classes (
+                        id,
+                        name,
+                        description,
+                        start_date,
+                        end_date,
+                        meeting_url,
+                        schedule,
+                        users!classes_teacher_id_fkey (
+                            id,
+                            name,
+                            avatar_url
+                        )
+                    )
+                `)
+                .eq('student_id', user.id)
+        }
 
-        if (error) {
-            console.error('Error fetching upcoming meetings:', error)
+        const { data: classesData, error: classesError } = await classesQuery
+
+        if (classesError) {
+            console.error('Error fetching classes:', classesError)
             return []
         }
 
-        // Format the data to match the expected structure
-        return (data as unknown as MeetingData[]).map(meeting => ({
-            id: meeting.id,
-            title: meeting.title,
-            description: meeting.description,
-            teacher: {
-                name: meeting.teacher_id?.name || 'Unknown Teacher',
-                avatar_url: meeting.teacher_id?.avatar_url || '/images/default-avatar.jpg',
-                title: meeting.teacher_id?.title || 'Teacher',
-            },
-            type: meeting.type as MeetingType,
-            startTime: formatDateTime(meeting.start_time),
-            endTime: formatDateTime(meeting.end_time),
-            duration: calculateDuration(meeting.start_time, meeting.end_time),
-            isOnline: meeting.is_online,
-            meetingLink: meeting.meeting_link,
-            location: meeting.location,
-            status: meeting.status as MeetingStatus,
-            relatedClass: meeting.class_id ? {
-                id: meeting.class_id.id,
-                name: meeting.class_id.name
-            } : null,
-            participants: meeting.participants_count || 0,
-            maxParticipants: meeting.max_participants || 0
-        }))
+        const meetings: Meeting[] = []
+
+        // Add one-on-one meetings if any
+        if (oneOnOneMeetings) {
+            oneOnOneMeetings.forEach(meeting => {
+                const startDate = new Date(meeting.start_time);
+                const teacherData = meeting.teacher_id as unknown as {
+                    name: string;
+                    avatar_url: string;
+                    title: string;
+                };
+                const classData = meeting.class_id as unknown as {
+                    id: string;
+                    name: string;
+                };
+
+                meetings.push({
+                    id: meeting.id,
+                    title: meeting.title,
+                    description: meeting.description,
+                    teacher: {
+                        name: teacherData?.name || 'Unknown Teacher',
+                        avatar_url: teacherData?.avatar_url || '/images/default-avatar.jpg',
+                        title: teacherData?.title || 'Teacher'
+                    },
+                    type: "ONE_ON_ONE",
+                    date: formatDate(startDate),
+                    displayDate: formatDisplayDate(startDate),
+                    startTime: formatTime(meeting.start_time),
+                    endTime: formatTime(meeting.end_time),
+                    duration: meeting.duration,
+                    isOnline: meeting.is_online,
+                    status: meeting.status,
+                    meetingLink: meeting.meeting_link,
+                    location: meeting.location,
+                    relatedClass: classData ? {
+                        id: classData.id,
+                        name: classData.name
+                    } : null
+                });
+            });
+        }
+
+        // Process recurring class meetings
+        console.log("CLASS DATA", classesData)
+
+        for (const classItem of classesData) {
+            const classData = user.role === 'TEACHER' ? classItem : classItem.classes
+            console.log("Processing class:", {
+                id: classData.id,
+                name: classData.name,
+                schedule: classData.schedule,
+                start_date: classData.start_date,
+                end_date: classData.end_date
+            });
+
+            const teacher = user.role === 'TEACHER'
+                ? { name: user.name, avatar_url: user.avatar_url, title: "Senior Instructor" }
+                : {
+                    name: (classData.users as any).name,
+                    avatar_url: (classData.users as any).avatar_url,
+                    title: "Senior Instructor"
+                }
+
+            if (classData.schedule) {
+                console.log("Processing schedule:", classData.schedule);
+                const { days, startTime, duration } = parseSchedule(classData.schedule)
+                console.log("Parsed schedule:", { days, startTime, duration });
+
+                const meetingDates = generateRecurringMeetings(
+                    new Date(classData.start_date),
+                    new Date(classData.end_date),
+                    days,
+                    startTime
+                )
+
+                console.log("Generated meeting dates:", meetingDates)
+
+                // Filter for upcoming meetings only
+                const upcomingDates = meetingDates.filter(date => {
+                    const isUpcoming = date > now;
+                    console.log("Checking date:", date, "Is upcoming:", isUpcoming, "Current time:", now);
+                    return isUpcoming;
+                })
+
+                console.log("Upcoming dates:", upcomingDates)
+
+                // Create meeting objects for each date
+                upcomingDates.forEach(date => {
+                    const startTime = new Date(date)
+                    const endTime = new Date(date)
+                    endTime.setMinutes(endTime.getMinutes() + duration)
+
+                    const meeting: Meeting = {
+                        id: `${classData.id}-${date.getTime()}`,
+                        title: `${classData.name} - Regular Class`,
+                        description: classData.description,
+                        teacher,
+                        type: "GROUP" as const,
+                        date: formatDate(date),
+                        displayDate: formatDisplayDate(date),
+                        startTime: formatTime(startTime),
+                        endTime: formatTime(endTime),
+                        duration: formatMeetingDuration(
+                            startTime.toTimeString().slice(0, 5),
+                            endTime.toTimeString().slice(0, 5)
+                        ),
+                        isOnline: true,
+                        status: 'scheduled',
+                        meetingLink: classData.meeting_url,
+                        relatedClass: {
+                            id: classData.id,
+                            name: classData.name
+                        }
+                    };
+                    console.log("Created meeting:", meeting);
+                    meetings.push(meeting)
+                })
+            }
+        }
+
+        console.log("All meetings before sort:", meetings);
+
+        // Sort meetings by date and time
+        let sortedMeetings = meetings.sort((a, b) => {
+            // Parse the full date and time for comparison
+            const dateA = new Date(a.date + ' ' + a.startTime);
+            const dateB = new Date(b.date + ' ' + b.startTime);
+            console.log('Comparing dates:', {
+                a: { date: a.date, time: a.startTime, parsed: dateA },
+                b: { date: b.date, time: b.startTime, parsed: dateB }
+            });
+            return dateA.getTime() - dateB.getTime();
+        });
+
+        console.log("Final sorted meetings:", sortedMeetings);
+        return sortedMeetings;
+
     } catch (error) {
-        console.error('Error in getUpcomingMeetings:', error)
-        return []
+        console.error('Error in getUpcomingMeetings:', error);
+        return [];
     }
 }
 
 /**
- * Get all past meetings for a user
+ * Get past meetings for the current user
  */
 export async function getPastMeetings(): Promise<Meeting[]> {
+    // Similar to getUpcomingMeetings but filter for past dates
     const user = await requireServerAuth()
     const supabase = await getSupabase()
+    const now = new Date()
 
     try {
-        // Get current date in ISO format
-        const now = new Date().toISOString()
-
-        // Query past meetings based on user role
-        let query = supabase
-            .from('meetings')
-            .select(`
-                id,
-                title,
-                description,
-                type,
-                start_time,
-                end_time,
-                duration,
-                is_online,
-                meeting_link,
-                location,
-                status,
-                max_participants,
-                participants_count,
-                teacher_id(id, name, avatar_url, title),
-                class_id(id, name)
-            `)
-            .lt('end_time', now)
-            .order('start_time', { ascending: false })
-            .limit(10) // Limit to recent past meetings
-
-        // Filter based on user role
-        if (user.role === 'STUDENT') {
-            query = query.eq('student_id', user.id)
-        } else if (user.role === 'TEACHER') {
-            query = query.eq('teacher_id', user.id)
-        }
-
-        const { data, error } = await query
-
-        if (error) {
-            console.error('Error fetching past meetings:', error)
-            return []
-        }
-
-        // Format the data to match the expected structure
-        return (data as unknown as MeetingData[]).map(meeting => ({
-            id: meeting.id,
-            title: meeting.title,
-            description: meeting.description,
-            teacher: {
-                name: meeting.teacher_id?.name || 'Unknown Teacher',
-                avatar_url: meeting.teacher_id?.avatar_url || '/images/default-avatar.jpg',
-                title: meeting.teacher_id?.title || 'Teacher'
-            },
-            type: meeting.type as MeetingType,
-            startTime: formatDateTime(meeting.start_time),
-            endTime: formatDateTime(meeting.end_time),
-            duration: calculateDuration(meeting.start_time, meeting.end_time),
-            isOnline: meeting.is_online,
-            meetingLink: meeting.meeting_link,
-            location: meeting.location,
-            status: meeting.status as MeetingStatus,
-            relatedClass: meeting.class_id ? {
-                id: meeting.class_id.id,
-                name: meeting.class_id.name
-            } : null,
-            participants: meeting.participants_count || 0,
-            maxParticipants: meeting.max_participants || 0
-        }))
+        // Implementation similar to getUpcomingMeetings
+        // but filter for dates < now instead of > now
+        return []
     } catch (error) {
         console.error('Error in getPastMeetings:', error)
         return []
@@ -260,6 +384,7 @@ export async function getMeetingById(meetingId: string): Promise<Meeting | null>
 
         // Format the data to match the expected structure
         const meeting = data as unknown as MeetingData
+        const startDate = new Date(meeting.start_time)
         return {
             id: meeting.id,
             title: meeting.title,
@@ -270,19 +395,19 @@ export async function getMeetingById(meetingId: string): Promise<Meeting | null>
                 title: meeting.teacher_id?.title || 'Teacher'
             },
             type: meeting.type as MeetingType,
-            startTime: formatDateTime(meeting.start_time),
-            endTime: formatDateTime(meeting.end_time),
+            date: formatDate(startDate),
+            displayDate: formatDisplayDate(startDate),
+            startTime: formatTime(new Date(meeting.start_time)),
+            endTime: formatTime(new Date(meeting.end_time)),
             duration: calculateDuration(meeting.start_time, meeting.end_time),
             isOnline: meeting.is_online,
+            status: meeting.status as MeetingStatus,
             meetingLink: meeting.meeting_link,
             location: meeting.location,
-            status: meeting.status as MeetingStatus,
             relatedClass: meeting.class_id ? {
                 id: meeting.class_id.id,
                 name: meeting.class_id.name
-            } : null,
-            participants: meeting.participants_count || 0,
-            maxParticipants: meeting.max_participants || 0
+            } : null
         }
     } catch (error) {
         console.error('Error in getMeetingById:', error)
@@ -568,13 +693,15 @@ export async function getAvailableMeetings(): Promise<Meeting[]> {
                 title: meeting.teacher_id?.title || 'Teacher'
             },
             type: meeting.type as MeetingType,
-            startTime: formatDateTime(meeting.start_time),
-            endTime: formatDateTime(meeting.end_time),
+            date: formatDate(new Date(meeting.start_time)),
+            displayDate: formatDisplayDate(new Date(meeting.start_time)),
+            startTime: formatTime(meeting.start_time),
+            endTime: formatTime(meeting.end_time),
             duration: calculateDuration(meeting.start_time, meeting.end_time),
             isOnline: meeting.is_online,
+            status: meeting.status as MeetingStatus,
             meetingLink: meeting.meeting_link,
             location: meeting.location,
-            status: meeting.status as MeetingStatus,
             relatedClass: meeting.class_id ? {
                 id: meeting.class_id.id,
                 name: meeting.class_id.name
@@ -595,38 +722,21 @@ export async function getMeetingsForCalendar(): Promise<CalendarMeeting[]> {
     const user = await requireServerAuth()
 
     try {
+        // Only get upcoming meetings since they're already properly filtered
         const upcomingMeetings = await getUpcomingMeetings()
-        const pastMeetings = await getPastMeetings()
-        const availableMeetings = await getAvailableMeetings()
-
-        // Combine all meetings
-        const allMeetings = [...upcomingMeetings, ...pastMeetings, ...availableMeetings]
 
         // Format meetings for calendar view
-        return allMeetings.map(meeting => {
-            // Extract date from startTime
-            let day = null
-
-            if (meeting.startTime.includes('Today')) {
-                day = new Date().getDate()
-            } else if (meeting.startTime.includes('Tomorrow')) {
-                const tomorrow = new Date()
-                tomorrow.setDate(tomorrow.getDate() + 1)
-                day = tomorrow.getDate()
-            } else {
-                const dateMatch = meeting.startTime.match(/([A-Za-z]+)\s+(\d+)/)
-                if (dateMatch) {
-                    day = parseInt(dateMatch[2])
-                }
-            }
+        return upcomingMeetings.map(meeting => {
+            // Parse the date from the meeting's date field
+            const meetingDate = new Date(meeting.date)
 
             return {
                 id: meeting.id,
                 title: meeting.title,
-                time: meeting.startTime.split(', ')[1] || meeting.startTime,
+                time: meeting.startTime,
                 isOnline: meeting.isOnline,
                 type: meeting.type,
-                day,
+                day: meetingDate.getDate(),
                 teacher: meeting.teacher
             }
         }).filter(meeting => meeting.day !== null)

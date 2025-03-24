@@ -6,7 +6,7 @@ export type Json =
     | { [key: string]: Json | undefined }
     | Json[]
 
-export type Database = {
+export interface Database {
     public: {
         Tables: {
             users: {
@@ -18,6 +18,7 @@ export type Database = {
                     role: 'STUDENT' | 'TEACHER' | 'ADMIN'
                     created_at: string
                     updated_at: string
+                    avatar_url: string | null
                 }
                 Insert: {
                     id?: string
@@ -27,6 +28,7 @@ export type Database = {
                     role: 'STUDENT' | 'TEACHER' | 'ADMIN'
                     created_at?: string
                     updated_at?: string
+                    avatar_url?: string | null
                 }
                 Update: {
                     id?: string
@@ -36,7 +38,9 @@ export type Database = {
                     role?: 'STUDENT' | 'TEACHER' | 'ADMIN'
                     created_at?: string
                     updated_at?: string
+                    avatar_url?: string | null
                 }
+                Relationships: []
             }
             classes: {
                 Row: {
@@ -46,8 +50,11 @@ export type Database = {
                     teacher_id: string
                     start_date: string
                     end_date: string
-                    created_at: string
-                    updated_at: string
+                    image: string | null
+                    meeting_url: string | null
+                    contact_group: string | null
+                    schedule: string | null
+                    max_students: number
                 }
                 Insert: {
                     id?: string
@@ -56,8 +63,11 @@ export type Database = {
                     teacher_id: string
                     start_date: string
                     end_date: string
-                    created_at?: string
-                    updated_at?: string
+                    image?: string | null
+                    meeting_url?: string | null
+                    contact_group?: string | null
+                    schedule?: string | null
+                    max_students?: number
                 }
                 Update: {
                     id?: string
@@ -66,8 +76,11 @@ export type Database = {
                     teacher_id?: string
                     start_date?: string
                     end_date?: string
-                    created_at?: string
-                    updated_at?: string
+                    image?: string | null
+                    meeting_url?: string | null
+                    contact_group?: string | null
+                    schedule?: string | null
+                    max_students?: number
                 }
             }
             assignments: {
@@ -251,7 +264,90 @@ export type Database = {
                     updated_at?: string
                 }
             }
-            // Add other table types as needed
+            class_enrollments: {
+                Row: {
+                    id: string
+                    class_id: string
+                    student_id: string
+                    enrolled_at: string
+                }
+                Insert: {
+                    id?: string
+                    class_id: string
+                    student_id: string
+                    enrolled_at?: string
+                }
+                Update: {
+                    id?: string
+                    class_id?: string
+                    student_id?: string
+                    enrolled_at?: string
+                }
+                Relationships: [
+                    {
+                        foreignKeyName: "class_enrollments_class_id_fkey"
+                        columns: ["class_id"]
+                        isOneToOne: false
+                        referencedRelation: "classes"
+                        referencedColumns: ["id"]
+                    },
+                    {
+                        foreignKeyName: "class_enrollments_student_id_fkey"
+                        columns: ["student_id"]
+                        isOneToOne: false
+                        referencedRelation: "users"
+                        referencedColumns: ["id"]
+                    }
+                ]
+            }
+            enrollment_requests: {
+                Row: {
+                    id: string
+                    class_id: string
+                    student_id: string
+                    message: string | null
+                    status: 'pending' | 'approved' | 'rejected'
+                    response_message: string | null
+                    requested_at: string
+                    responded_at: string | null
+                }
+                Insert: {
+                    id?: string
+                    class_id: string
+                    student_id: string
+                    message?: string | null
+                    status: 'pending' | 'approved' | 'rejected'
+                    response_message?: string | null
+                    requested_at?: string
+                    responded_at?: string | null
+                }
+                Update: {
+                    id?: string
+                    class_id?: string
+                    student_id?: string
+                    message?: string | null
+                    status?: 'pending' | 'approved' | 'rejected'
+                    response_message?: string | null
+                    requested_at?: string
+                    responded_at?: string | null
+                }
+                Relationships: [
+                    {
+                        foreignKeyName: "enrollment_requests_class_id_fkey"
+                        columns: ["class_id"]
+                        isOneToOne: false
+                        referencedRelation: "classes"
+                        referencedColumns: ["id"]
+                    },
+                    {
+                        foreignKeyName: "enrollment_requests_student_id_fkey"
+                        columns: ["student_id"]
+                        isOneToOne: false
+                        referencedRelation: "users"
+                        referencedColumns: ["id"]
+                    }
+                ]
+            }
         }
         Views: {
             [_ in never]: never
