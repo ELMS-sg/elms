@@ -193,8 +193,13 @@ export async function getStudentClasses() {
 
         console.log('getStudentClasses: Enrollments fetched', enrollments?.length || 0)
 
-        // If no enrollments found, try to create sample data
+        // If no enrollments found, return empty array instead of creating sample data
         if (!enrollments || enrollments.length === 0) {
+            console.log('getStudentClasses: No enrollments found, returning empty array')
+            return []
+
+            // The code below has been commented out to prevent automatic sample data creation
+            /*
             console.log('getStudentClasses: No enrollments found, attempting to create sample data')
 
             try {
@@ -265,6 +270,7 @@ export async function getStudentClasses() {
                 console.error('Error creating sample data in getStudentClasses:', error)
                 return []
             }
+            */
         }
 
         // Format the data to match the frontend expectations

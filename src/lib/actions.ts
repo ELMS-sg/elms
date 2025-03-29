@@ -126,6 +126,8 @@ export async function requireServerAuth() {
 
             console.log("requireServerAuth: Created new user", newUser.id, newUser.email)
 
+            // Skip creating sample data for new users
+            /*
             // Create some sample data for the new user if they're a student
             if (role === 'STUDENT') {
                 try {
@@ -139,6 +141,7 @@ export async function requireServerAuth() {
                     // Continue anyway, this is not critical
                 }
             }
+            */
 
             return newUser
         }
