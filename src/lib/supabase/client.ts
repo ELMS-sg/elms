@@ -20,8 +20,9 @@ export const getSupabase = cache(async () => {
     );
 });
 
-// For route handlers that need to access the user's session
 export const getSupabaseRouteHandler = cache(async () => {
     const cookieStore = cookies();
-    return createRouteHandlerClient<Database>({ cookies: () => cookieStore });
+    return createRouteHandlerClient<Database>({
+        cookies: () => cookieStore
+    });
 }); 

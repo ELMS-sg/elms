@@ -15,7 +15,9 @@ import {
     LogOut,
     Menu,
     X,
-    User
+    User,
+    ClipboardList,
+    Settings
 } from "lucide-react"
 import { useState } from "react"
 
@@ -31,42 +33,54 @@ interface DashboardNavProps {
 
 export function DashboardNav({ user }: DashboardNavProps) {
     const pathname = usePathname()
-    const displayName = user.name || user.email
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+    const displayName = user?.name || user?.email?.split('@')[0] || 'User'
+    const isAdmin = user?.role === 'ADMIN'
+    const isTeacher = user?.role === 'TEACHER'
     console.log(user)
 
     const navigation = [
         {
             name: "Dashboard",
             href: "/dashboard",
-            icon: <Home className="w-5 h-5" />,
             current: pathname === "/dashboard",
+            icon: <Home className="w-5 h-5" />
         },
         {
             name: "Classes",
             href: "/dashboard/classes",
-            icon: <BookOpen className="w-5 h-5" />,
-            current: pathname === "/dashboard/classes",
-        },
-        {
-            name: "Meetings",
-            href: "/dashboard/meetings",
-            icon: <Calendar className="w-5 h-5" />,
-            current: pathname === "/dashboard/meetings",
+            current: pathname === "/dashboard/classes" || pathname.startsWith("/dashboard/classes/"),
+            icon: <BookOpen className="w-5 h-5" />
         },
         {
             name: "Assignments",
             href: "/dashboard/assignments",
-            icon: <FileText className="w-5 h-5" />,
-            current: pathname === "/dashboard/assignments",
+            current: pathname === "/dashboard/assignments" || pathname.startsWith("/dashboard/assignments/"),
+            icon: <FileText className="w-5 h-5" />
+        },
+        {
+            name: "Meetings",
+            href: "/dashboard/meetings",
+            current: pathname === "/dashboard/meetings" || pathname.startsWith("/dashboard/meetings/"),
+            icon: <Calendar className="w-5 h-5" />
         },
         {
             name: "Profile",
             href: "/dashboard/profile",
-            icon: <User className="w-5 h-5" />,
             current: pathname === "/dashboard/profile",
+            icon: <User className="w-5 h-5" />
         },
     ]
+
+    // Add admin link if user is admin
+    if (isAdmin) {
+        navigation.push({
+            name: "Admin",
+            href: "/admin",
+            current: pathname.startsWith("/admin"),
+            icon: <Settings className="w-5 h-5" />
+        })
+    }
 
     return (
         <nav className="bg-white shadow-sm fixed w-full top-0 z-10">

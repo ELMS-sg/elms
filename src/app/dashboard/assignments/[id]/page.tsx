@@ -75,10 +75,14 @@ export default async function AssignmentDetailPage({
                     <div className="flex items-center">
                         <Clock className="w-4 h-4 mr-1" />
                         Due {dueDateDisplay}
-                        {isPastDue && !(assignment.submission?.status === 'graded') && (
-                            <span className="ml-2 text-red-600 font-medium">
-                                (Past Due)
-                            </span>
+                        {isPastDue && !assignment.submission?.grade && (
+                            <div className="bg-red-50 text-red-700 p-4 rounded-lg flex items-start mb-6">
+                                <AlertCircle className="w-5 h-5 mr-2 flex-shrink-0 mt-0.5" />
+                                <div>
+                                    <p className="font-medium">Overdue Assignment</p>
+                                    <p className="text-sm">This assignment is past due. Submit as soon as possible.</p>
+                                </div>
+                            </div>
                         )}
                     </div>
                     <div className="flex items-center">
@@ -139,7 +143,7 @@ export default async function AssignmentDetailPage({
                             <h2 className="text-lg font-semibold text-gray-900 mb-4">Submission</h2>
 
                             {!hasSubmission && (
-                                <div className="text-center py-8">
+                                <div className="text-center py-8 flex flex-col items-center">
                                     <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
                                         <Upload className="w-8 h-8 text-gray-400" />
                                     </div>
@@ -147,10 +151,12 @@ export default async function AssignmentDetailPage({
                                     <p className="text-gray-500 mb-4">Upload your files to submit this assignment</p>
                                     <Link
                                         href={`/dashboard/assignments/${assignment.id}/submit`}
-                                        className="btn btn-primary"
+                                        className="btn btn-primary flex items-center justify-center w-[300px]"
                                     >
                                         <Upload className="w-4 h-4 mr-2" />
-                                        Submit Assignment
+                                        <span>
+                                            Submit Assignment
+                                        </span>
                                     </Link>
                                 </div>
                             )}
@@ -158,13 +164,13 @@ export default async function AssignmentDetailPage({
                             {hasSubmission && (
                                 <div>
                                     <div className="flex items-center mb-4">
-                                        <div className={`px-3 py-1 rounded-full text-xs font-medium flex items-center ${assignment.submission?.status === 'graded'
+                                        <div className={`px-3 py-1 rounded-full text-xs font-medium flex items-center ${assignment.submission?.grade // If it has a grade, it's been graded
                                             ? "bg-green-100 text-green-800"
                                             : isLate
                                                 ? "bg-yellow-100 text-yellow-800"
                                                 : "bg-blue-100 text-blue-800"
                                             }`}>
-                                            {assignment.submission?.status === 'graded' ? (
+                                            {assignment.submission?.grade ? (
                                                 <>
                                                     <CheckCircle className="w-3 h-3 mr-1" />
                                                     Graded
@@ -218,7 +224,7 @@ export default async function AssignmentDetailPage({
                                     )}
 
                                     {/* Grade and Feedback */}
-                                    {assignment.submission?.status === 'graded' && (
+                                    {assignment.submission?.grade && (
                                         <div className="bg-gray-50 p-4 rounded-lg">
                                             <div className="flex items-center justify-between mb-2">
                                                 <h3 className="text-sm font-medium text-gray-700">Grade:</h3>
@@ -239,7 +245,7 @@ export default async function AssignmentDetailPage({
                                     )}
 
                                     {/* Resubmit Button (if not graded) */}
-                                    {assignment.submission?.status !== 'graded' && (
+                                    {assignment.submission && !assignment.submission.grade && (
                                         <div className="mt-4">
                                             <Link
                                                 href={`/dashboard/assignments/${assignment.id}/submit`}
@@ -262,10 +268,12 @@ export default async function AssignmentDetailPage({
                             <div className="flex flex-wrap gap-3">
                                 <Link
                                     href={`/dashboard/assignments/${assignment.id}/edit`}
-                                    className="btn btn-outline"
+                                    className="flex items-center btn btn-outline"
                                 >
                                     <Edit className="w-4 h-4 mr-2" />
-                                    Edit Assignment
+                                    <span>
+                                        Edit Assignment
+                                    </span>
                                 </Link>
                                 <Link
                                     href={`/dashboard/assignments/${assignment.id}/submissions`}
@@ -313,7 +321,7 @@ export default async function AssignmentDetailPage({
                             <div>
                                 <p className="text-sm text-gray-500">Assignment Type</p>
                                 <p className="font-medium text-gray-900 capitalize">
-                                    {assignment.assignment_type}
+                                    {assignment.assignment_type || "Assignment"}
                                 </p>
                             </div>
                             <div>
