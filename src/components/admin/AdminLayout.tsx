@@ -28,6 +28,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         { name: 'Meetings', href: '/admin/meetings', icon: <Users className="w-5 h-5" /> },
         { name: 'Fix Submissions', href: '/admin/fix-submissions', icon: <FileCheck className="w-5 h-5" /> },
         { name: 'Fix Foreign Key', href: '/admin/fix-submissions/foreign-key', icon: <Database className="w-5 h-5" /> },
+        { name: 'Fix Assignment Files', href: '/admin/fix-submissions/assignment-files', icon: <FileCheck className="w-5 h-5" /> },
     ];
 
     return (

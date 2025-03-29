@@ -11,58 +11,57 @@ import { Check, X, RefreshCw, AlertTriangle } from 'lucide-react';
 
 export default function StorageAdminPage() {
     const [isChecking, setIsChecking] = useState(false);
-    const [bucketStatus, setBucketStatus] = useState<null | {
-        status: 'exists' | 'created' | 'error';
+    const [bucketsStatus, setBucketsStatus] = useState<null | {
+        status: string;
         message: string;
-        bucket?: any;
-        warning?: string;
-        error?: string;
+        buckets: Record<string, {
+            status: 'exists' | 'created' | 'error';
+            message?: string;
+            bucket?: any;
+            warning?: string;
+            error?: string;
+        }>;
     }>(null);
     const router = useRouter();
 
     // Function to check storage bucket status
-    const checkStorageBucket = async () => {
+    const checkStorageBuckets = async () => {
         setIsChecking(true);
-        setBucketStatus(null);
+        setBucketsStatus(null);
 
         try {
             const response = await fetch('/api/storage-setup');
             const data = await response.json();
 
             if (response.ok) {
-                setBucketStatus({
-                    status: data.status,
-                    message: data.message,
-                    bucket: data.bucket,
-                    warning: data.warning
-                });
+                setBucketsStatus(data);
             } else {
-                setBucketStatus({
+                setBucketsStatus({
                     status: 'error',
-                    message: 'Failed to check storage bucket',
-                    error: data.error
+                    message: 'Failed to check storage buckets',
+                    buckets: {}
                 });
             }
         } catch (error) {
-            setBucketStatus({
+            setBucketsStatus({
                 status: 'error',
-                message: 'Error checking storage bucket',
-                error: error instanceof Error ? error.message : 'Unknown error'
+                message: 'Error checking storage buckets',
+                buckets: {}
             });
         } finally {
             setIsChecking(false);
         }
     };
 
-    return (
-        <AdminLayout>
-            <h1 className="text-2xl font-bold mb-4">Storage Bucket Management</h1>
+    const renderBucketCard = (bucketName: string, description: string) => {
+        const bucketStatus = bucketsStatus?.buckets?.[bucketName];
 
+        return (
             <Card className="mb-6">
                 <CardHeader>
-                    <CardTitle>Submission Files Bucket</CardTitle>
+                    <CardTitle>{bucketName}</CardTitle>
                     <CardDescription>
-                        This is where student assignment submissions are stored. The bucket must exist and be configured correctly for file uploads to work.
+                        {description}
                     </CardDescription>
                 </CardHeader>
 
@@ -88,10 +87,12 @@ export default function StorageAdminPage() {
                                 )}
                             </div>
 
-                            <div>
-                                <span className="font-semibold">Message:</span>
-                                <p className="mt-1">{bucketStatus.message}</p>
-                            </div>
+                            {bucketStatus.message && (
+                                <div>
+                                    <span className="font-semibold">Message:</span>
+                                    <p className="mt-1">{bucketStatus.message}</p>
+                                </div>
+                            )}
 
                             {bucketStatus.bucket && (
                                 <div>
@@ -124,12 +125,29 @@ export default function StorageAdminPage() {
                         </p>
                     )}
                 </CardContent>
+            </Card>
+        );
+    };
 
-                <CardFooter>
+    return (
+        <AdminLayout>
+            <h1 className="text-2xl font-bold mb-4">Storage Bucket Management</h1>
+
+            {renderBucketCard(
+                'submission-files',
+                'This is where student assignment submissions are stored. The bucket must exist and be configured correctly for student file uploads to work.'
+            )}
+
+            {renderBucketCard(
+                'assignment-files',
+                'This is where teacher assignment files are stored. The bucket must exist and be configured correctly for teachers to upload files to assignments.'
+            )}
+
+            <Card className="mb-6">
+                <CardFooter className="flex justify-between">
                     <Button
-                        onClick={checkStorageBucket}
+                        onClick={checkStorageBuckets}
                         disabled={isChecking}
-                        className="mr-2"
                     >
                         {isChecking ? (
                             <>

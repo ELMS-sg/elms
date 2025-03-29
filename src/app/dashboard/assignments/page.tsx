@@ -245,7 +245,7 @@ export default async function AssignmentsPage() {
                 <div className="mb-10">
                     <div className="flex items-center justify-between mb-4">
                         <h2 className="text-xl font-bold text-gray-900">Assignments to Grade</h2>
-                        <Link href="/dashboard/assignments/to-grade" className="text-sm text-primary-600 hover:text-primary-700 flex items-center">
+                        <Link href="/dashboard/submissions" className="text-sm text-primary-600 hover:text-primary-700 flex items-center">
                             View all <ChevronRight className="ml-1 w-4 h-4" />
                         </Link>
                     </div>
@@ -447,7 +447,7 @@ export default async function AssignmentsPage() {
                 <div className="mb-10">
                     <div className="flex items-center justify-between mb-4">
                         <h2 className="text-xl font-bold text-gray-900">Completed Assignments</h2>
-                        <Link href="/dashboard/assignments/completed" className="text-sm text-primary-600 hover:text-primary-700 flex items-center">
+                        <Link href="/dashboard/submissions" className="text-sm text-primary-600 hover:text-primary-700 flex items-center">
                             View all <ChevronRight className="ml-1 w-4 h-4" />
                         </Link>
                     </div>
@@ -499,7 +499,7 @@ export default async function AssignmentsPage() {
                                         {assignment.course?.name}
                                     </div>
 
-                                    <div className="bg-gray-50 p-4 rounded-lg mb-4">
+                                    <div className="bg-gray-50 p-4 rounded-lg">
                                         <div className="flex items-center justify-between mb-2">
                                             <span className="text-sm font-medium text-gray-700">Grade:</span>
                                             <span className="text-sm font-bold text-primary-700">
@@ -511,10 +511,10 @@ export default async function AssignmentsPage() {
                                         </p>
                                     </div>
                                 </div>
-                                <div className="border-t border-gray-100 p-4 bg-gray-50">
+                                <div className="border-gray-100 pb-4 mx-auto">
                                     <Link
                                         href={`/dashboard/assignments/${assignment.id}`}
-                                        className="btn btn-outline w-full"
+                                        className="rounded-xl px-4 py-2 border-[1px] border-gray-300 w-full"
                                     >
                                         View Details
                                     </Link>
