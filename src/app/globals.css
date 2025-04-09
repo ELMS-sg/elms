@@ -12,6 +12,24 @@
   --accent-green: #22c55e;
   --accent-yellow: #eab308;
   --accent-red: #ef4444;
+
+  /* Required for shadcn UI components */
+  --radius: 0.5rem;
+  --border: #e2e8f0;
+  --input: #e2e8f0;
+  --ring: #3b82f6;
+  --popover: #ffffff;
+  --popover-foreground: #1f2937;
+  --muted: #f1f5f9;
+  --muted-foreground: #64748b;
+  --accent: #f1f5f9;
+  --accent-foreground: #1f2937;
+  --destructive: #ef4444;
+  --destructive-foreground: #f8fafc;
+  --primary-foreground: #f8fafc;
+  --secondary: #f1f5f9;
+  --secondary-foreground: #1f2937;
+  --ring-offset-background: #f8fafc;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -22,6 +40,21 @@
     --card-hover: #334155;
     --primary: #3b82f6;
     --primary-light: #1e3a8a;
+
+    /* Dark mode shadcn UI components */
+    --border: #1e293b;
+    --input: #1e293b;
+    --popover: #1e293b;
+    --popover-foreground: #f1f5f9;
+    --muted: #1e293b;
+    --muted-foreground: #94a3b8;
+    --accent: #1e293b;
+    --accent-foreground: #f1f5f9;
+    --destructive-foreground: #f8fafc;
+    --primary-foreground: #020617;
+    --secondary: #1e293b;
+    --secondary-foreground: #f1f5f9;
+    --ring-offset-background: #0f172a;
   }
 }
 
@@ -116,4 +149,23 @@ body {
   .badge-red {
     @apply bg-accent-red-light text-accent-red-dark;
   }
+}
+
+/* react-day-picker styles */
+.rdp {
+  --rdp-cell-size: 40px;
+  --rdp-accent-color: var(--primary);
+  --rdp-background-color: var(--primary-light);
+  --rdp-accent-color-dark: var(--primary);
+  --rdp-background-color-dark: var(--primary-light);
+  --rdp-outline: 2px solid var(--primary);
+  --rdp-outline-offset: 2px;
+  margin: 1em;
+}
+
+.rdp-day_selected,
+.rdp-day_selected:focus-visible,
+.rdp-day_selected:hover {
+  background-color: var(--primary);
+  color: white;
 }

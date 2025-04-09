@@ -873,4 +873,70 @@ export async function getEnrollmentRequests() {
     }
 
     return requests
+}
+
+/**
+ * Create a new class (for admin users)
+ */
+export async function createClass(classData: {
+    name: string;
+    description: string;
+    teacher_id: string;
+    start_date: string;
+    end_date: string;
+    image?: string;
+    meeting_url?: string;
+    learning_method?: string;
+    max_students?: number;
+    tags?: string[];
+    schedule?: string;
+}) {
+    const user = await requireServerAuth();
+
+    // Only admin or teacher users can create classes
+    if (user.role !== 'ADMIN' && user.role !== 'TEACHER') {
+        throw new Error('Only administrators and teachers can create classes');
+    }
+
+    const supabase = await getSupabase();
+
+    // Set default values for optional fields
+    const defaultImage = 'https://images.unsplash.com/photo-1497633762265-9d179a990aa6?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80';
+    const completeClassData = {
+        ...classData,
+        image: classData.image || defaultImage,
+        learning_method: classData.learning_method || 'Hybrid',
+        max_students: classData.max_students || 30,
+        tags: classData.tags || ['English', 'Language'],
+        created_by: user.id,
+        created_at: new Date().toISOString(),
+    };
+
+    try {
+        // Insert the new class
+        const { data: newClass, error } = await supabase
+            .from('classes')
+            .insert(completeClassData)
+            .select()
+            .single();
+
+        if (error) {
+            console.error('Error creating class:', error);
+            throw new Error(`Failed to create class: ${error.message}`);
+        }
+
+        // Revalidate the classes page
+        revalidatePath('/dashboard/classes');
+        if (user.role === 'ADMIN') {
+            revalidatePath('/admin/classes');
+        }
+
+        return {
+            success: true,
+            class: newClass
+        };
+    } catch (error) {
+        console.error('Exception in createClass:', error);
+        throw error;
+    }
 } 
