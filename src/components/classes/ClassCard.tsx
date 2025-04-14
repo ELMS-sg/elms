@@ -3,8 +3,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { CalendarIcon, Users, BookOpen } from 'lucide-react';
-
+import { CalendarIcon, Users, BookOpen, GraduationCap } from 'lucide-react';
 interface ClassCardProps {
     id: string;
     name: string;
@@ -35,7 +34,6 @@ export function ClassCard({
     mode = 'admin',
 }: ClassCardProps) {
 
-    // Handle delete button click
     const handleDelete = (e: React.MouseEvent) => {
         e.preventDefault();
         if (onDelete) {
@@ -105,11 +103,19 @@ export function ClassCard({
                     )}
 
                     {isAdmin && (
-                        <Button variant="default" asChild className="bg-blue-400 hover:bg-blue-500">
-                            <Link href={`/admin/classes/edit/${id}`}>
-                                Edit
+                        <div className="flex gap-2">
+                            <Link href={`/admin/classes/${id}/students`}>
+                                <Button variant="outline" size="sm" className="h-full py-2 px-3 border-gray-200 hover:bg-blue-50 bg-white">
+                                    <GraduationCap className="h-4 w-4 text-blue-600" />
+                                    <span className="ml-2">Manage</span>
+                                </Button>
                             </Link>
-                        </Button>
+                            <Button variant="outline" asChild className="text-blue-500 hover:text-blue-600 border border-blue-500 hover:border-blue-600 bg-white">
+                                <Link href={`/admin/classes/edit/${id}`}>
+                                    Edit
+                                </Link>
+                            </Button>
+                        </div>
                     )}
                 </div>
             </CardFooter>

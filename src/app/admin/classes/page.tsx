@@ -5,7 +5,7 @@ import AdminLayout from '@/components/admin/AdminLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
-import { Loader2, Plus, Search } from 'lucide-react';
+import { Loader2, Plus, Search, GraduationCap, Pencil, Trash2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ClassCard } from '@/components/classes/ClassCard';
@@ -14,7 +14,7 @@ interface Class {
     id: string;
     name: string;
     description: string;
-    teacher: string;
+    teacher_name: string;
     teacherId: string;
     startDate: string;
     endDate: string;
@@ -76,7 +76,7 @@ export default function AdminClassesPage() {
         const filtered = classes.filter(
             (cls) =>
                 cls.name.toLowerCase().includes(lowerCaseSearch) ||
-                cls.teacher.toLowerCase().includes(lowerCaseSearch)
+                cls.teacher_name.toLowerCase().includes(lowerCaseSearch)
         );
 
         setFilteredClasses(filtered);
@@ -163,14 +163,14 @@ export default function AdminClassesPage() {
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         {filteredClasses.map((cls) => (
-                            <div key={cls.id} className="h-full">
+                            <div key={cls.id} className="bg-white shadow rounded-lg overflow-hidden flex flex-col">
                                 <ClassCard
                                     id={cls.id}
                                     name={cls.name}
                                     description={cls.description}
-                                    teacherName={cls.teacher}
-                                    schedule={cls.schedule}
-                                    image={cls.image}
+                                    teacherName={cls.teacher_name}
+                                    schedule={cls.schedule || "Flexible schedule"}
+                                    image={cls.image || "/images/default-class.jpg"}
                                     learningMethod={cls.learningMethod}
                                     enrolledCount={cls.totalStudents}
                                     maxStudents={cls.maxStudents || 30}

@@ -163,7 +163,6 @@ export async function getStudentClasses() {
             return []
         }
 
-        // Get the classes the student is enrolled in
         console.log('getStudentClasses: Fetching enrollments for student', user.id)
         const { data: enrollments, error: enrollmentError } = await supabase
             .from('class_enrollments')
@@ -588,21 +587,32 @@ export async function getAvailableClasses() {
 
 /**
  * Enroll a student in a class
+ * @param classId - The ID of the class to enroll in
+ * @param studentId - Optional ID of student to enroll (for admin use). If not provided, uses current user.
  */
-export async function enrollInClass(classId: string) {
+export async function enrollInClass(classId: string, studentId?: string) {
     const user = await requireServerAuth()
     const supabase = await getSupabase()
 
-    if (user.role !== 'STUDENT') {
+    // If studentId is provided, only admin can use it to enroll other students
+    if (studentId && user.role !== 'ADMIN') {
+        throw new Error('Only administrators can enroll other students')
+    }
+
+    // If no studentId is provided, user must be a student
+    if (!studentId && user.role !== 'STUDENT') {
         throw new Error('Only students can enroll in classes')
     }
+
+    // Determine which student ID to use
+    const targetStudentId = studentId || user.id
 
     // Check if the student is already enrolled
     const { data: existingEnrollment, error: checkError } = await supabase
         .from('class_enrollments')
         .select('id')
         .eq('class_id', classId)
-        .eq('student_id', user.id)
+        .eq('student_id', targetStudentId)
         .single()
 
     if (checkError && checkError.code !== 'PGRST116') {
@@ -611,7 +621,7 @@ export async function enrollInClass(classId: string) {
     }
 
     if (existingEnrollment) {
-        throw new Error('You are already enrolled in this class')
+        throw new Error('This student is already enrolled in this class')
     }
 
     // Enroll the student
@@ -619,7 +629,7 @@ export async function enrollInClass(classId: string) {
         .from('class_enrollments')
         .insert({
             class_id: classId,
-            student_id: user.id,
+            student_id: targetStudentId,
             enrolled_at: new Date().toISOString()
         })
 
@@ -636,21 +646,32 @@ export async function enrollInClass(classId: string) {
 
 /**
  * Unenroll a student from a class
+ * @param classId - The ID of the class to unenroll from
+ * @param studentId - Optional ID of student to unenroll (for admin use). If not provided, uses current user.
  */
-export async function unenrollFromClass(classId: string) {
+export async function unenrollFromClass(classId: string, studentId?: string) {
     const user = await requireServerAuth()
     const supabase = await getSupabase()
 
-    if (user.role !== 'STUDENT') {
+    // If studentId is provided, only admin can use it to unenroll other students
+    if (studentId && user.role !== 'ADMIN') {
+        throw new Error('Only administrators can unenroll other students')
+    }
+
+    // If no studentId is provided, user must be a student
+    if (!studentId && user.role !== 'STUDENT') {
         throw new Error('Only students can unenroll from classes')
     }
+
+    // Determine which student ID to use
+    const targetStudentId = studentId || user.id
 
     // Delete the enrollment
     const { error: deleteError } = await supabase
         .from('class_enrollments')
         .delete()
         .eq('class_id', classId)
-        .eq('student_id', user.id)
+        .eq('student_id', targetStudentId)
 
     if (deleteError) {
         console.error('Error unenrolling from class:', deleteError)
@@ -939,4 +960,70 @@ export async function createClass(classData: {
         console.error('Exception in createClass:', error);
         throw error;
     }
+}
+
+/**
+ * Get all students enrolled in a class
+ * @param classId - The ID of the class to get enrollments for
+ * @returns Array of enrolled students with their details
+ */
+export async function getEnrolledStudents(classId: string) {
+    const user = await requireServerAuth()
+    const supabase = await getSupabase()
+
+    // Ensure the user is either admin, or teacher of this class
+    if (user.role !== 'ADMIN') {
+        if (user.role === 'TEACHER') {
+            // Check if teacher is assigned to this class
+            const { data: classData, error: classError } = await supabase
+                .from('classes')
+                .select('id')
+                .eq('id', classId)
+                .eq('teacher_id', user.id)
+                .single()
+
+            if (classError || !classData) {
+                throw new Error('Access denied: You can only view enrollments for classes you teach')
+            }
+        } else {
+            throw new Error('Access denied: Only administrators and teachers can view class enrollments')
+        }
+    }
+
+    // Get all students enrolled in this class
+    const { data: enrollments, error: enrollmentError } = await supabase
+        .from('class_enrollments')
+        .select(`
+            id,
+            enrolled_at,
+            student_id,
+            users!class_enrollments_student_id_fkey (
+                id,
+                name,
+                email,
+                avatar_url,
+                created_at
+            )
+        `)
+        .eq('class_id', classId)
+        .order('enrolled_at', { ascending: false })
+
+    if (enrollmentError) {
+        console.error('Error fetching enrollments:', enrollmentError)
+        throw new Error('Failed to fetch enrolled students')
+    }
+
+    // Format the enrollment data
+    return enrollments.map(enrollment => {
+        const student = enrollment.users as any
+        return {
+            enrollmentId: enrollment.id,
+            enrolledAt: enrollment.enrolled_at,
+            id: student.id,
+            name: student.name,
+            email: student.email,
+            avatar: student.avatar_url,
+            joinedAt: student.created_at
+        }
+    })
 } 
