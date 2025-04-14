@@ -54,7 +54,7 @@ export default function AdminDashboardPage() {
                             <CardDescription>{tool.description}</CardDescription>
                         </CardHeader>
                         <CardFooter>
-                            <Button asChild variant="outline">
+                            <Button asChild variant="outline" className="bg-white text-black">
                                 <Link href={tool.href} className="flex items-center">
                                     Open <ArrowRight className="ml-2 w-4 h-4" />
                                 </Link>

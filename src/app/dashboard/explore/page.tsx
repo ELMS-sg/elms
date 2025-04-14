@@ -126,7 +126,7 @@ export default async function ExplorePage() {
                                 ) : classItem.hasCapacity ? (
                                     <form action={async () => {
                                         'use server'
-                                        await enrollInClass(classItem.id)
+                                        await enrollInClass(classItem.id, user.id)
                                     }}>
                                         <button className="btn btn-primary w-full">
                                             Enroll Now

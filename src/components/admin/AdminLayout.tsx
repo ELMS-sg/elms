@@ -4,14 +4,13 @@ import React from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
-    Settings,
-    Users,
-    Database,
+
     BookOpen,
-    FileCheck,
     Home,
     ArrowLeft,
-    HardDrive
+    User2,
+    FileText,
+
 } from 'lucide-react';
 
 interface AdminLayoutProps {
@@ -24,10 +23,13 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
     const navigation = [
         { name: 'Dashboard', href: '/admin', icon: <Home className="w-5 h-5" /> },
-        { name: 'Storage', href: '/admin/storage', icon: <HardDrive className="w-5 h-5" /> },
-        { name: 'Meetings', href: '/admin/meetings', icon: <Users className="w-5 h-5" /> },
-        { name: 'Fix Submissions', href: '/admin/fix-submissions', icon: <FileCheck className="w-5 h-5" /> },
-        { name: 'Fix Foreign Key', href: '/admin/fix-submissions/foreign-key', icon: <Database className="w-5 h-5" /> },
+        { name: 'Users', href: '/admin/users', icon: <User2 className="w-5 h-5" /> },
+        { name: 'Classes', href: '/admin/classes', icon: <BookOpen className="w-5 h-5" /> },
+        { name: 'Assignments', href: '/admin/assignments', icon: <FileText className="w-5 h-5" /> },
+        // { name: 'Submissions', href: '/admin/submissions', icon: <CheckSquare className="w-5 h-5" /> },
+        // { name: 'Fix Submissions', href: '/admin/fix-submissions', icon: <Wrench className="w-5 h-5" /> },
+        // { name: 'Fix Foreign Key', href: '/admin/fix-submissions/foreign-key', icon: <Database className="w-5 h-5" /> },
+        // { name: 'Fix Assignment Files', href: '/admin/fix-submissions/assignment-files', icon: <FileCheck className="w-5 h-5" /> },
     ];
 
     return (
@@ -41,7 +43,9 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                 </div>
                 <nav className="mt-5 px-4 space-y-1">
                     {navigation.map((item) => {
-                        const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
+                        const isActive = item.href === '/admin'
+                            ? pathname === '/admin'
+                            : pathname.startsWith(`${item.href}/`) || pathname === item.href;
                         return (
                             <Link
                                 key={item.name}
@@ -73,8 +77,8 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
             {/* Main content */}
             <div className="flex-1">
-                <div className="py-6 px-4 sm:px-6 lg:px-8">
-                    <div className="max-w-4xl mx-auto">
+                <div className="py-6 sm:px-1 lg:px-2">
+                    <div className="max-w-6xl mx-auto">
                         {children}
                     </div>
                 </div>
