@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Loader2, Plus, Pencil, Trash2, Shield, UserRound, Search } from 'lucide-react';
+import { Loader2, Plus, Pencil, Trash2, Shield, UserRound, Search, BookOpen, GraduationCap } from 'lucide-react';
 import Link from 'next/link';
 import {
     Table,
@@ -296,6 +296,22 @@ export default function AdminUsersPage() {
                                             <TableCell className="text-gray-600">{formatDate(user.created_at)}</TableCell>
                                             <TableCell className="text-right">
                                                 <div className="flex justify-end space-x-2">
+                                                    {user.role === 'TEACHER' && (
+                                                        <Link href={`/admin/teachers/${user.id}`}>
+                                                            <Button variant="outline" size="sm" className="h-9 px-3 border-gray-200 hover:bg-gray-50 bg-white">
+                                                                <BookOpen className="h-4 w-4 text-blue-600" />
+                                                                <span className="ml-2 hidden sm:inline">View Classes</span>
+                                                            </Button>
+                                                        </Link>
+                                                    )}
+                                                    {user.role === 'STUDENT' && (
+                                                        <Link href={`/admin/students/${user.id}`}>
+                                                            <Button variant="outline" size="sm" className="h-9 px-3 border-gray-200 hover:bg-gray-50 bg-white">
+                                                                <GraduationCap className="h-4 w-4 text-green-600" />
+                                                                <span className="ml-2 hidden sm:inline">View Classes</span>
+                                                            </Button>
+                                                        </Link>
+                                                    )}
                                                     <Link href={`/admin/users/edit/${user.id}`}>
                                                         <Button variant="outline" size="sm" className="h-9 px-3 border-gray-200 hover:bg-gray-50 bg-white">
                                                             <Pencil className="h-4 w-4 text-blue-600" />

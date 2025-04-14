@@ -15,24 +15,24 @@ export async function GET() {
 
         const supabase = await getSupabase();
 
-        // Fetch all users with role TEACHER
-        const { data: teachers, error } = await supabase
+        // Fetch all users with role STUDENT
+        const { data: students, error } = await supabase
             .from('users')
             .select('id, name, email, avatar_url')
-            .eq('role', 'TEACHER')
+            .eq('role', 'STUDENT')
             .order('name');
 
         if (error) {
-            console.error('Error fetching teachers:', error);
+            console.error('Error fetching students:', error);
             return NextResponse.json(
-                { error: 'Failed to fetch teachers' },
+                { error: 'Failed to fetch students' },
                 { status: 500 }
             );
         }
 
-        return NextResponse.json(teachers);
+        return NextResponse.json(students);
     } catch (error) {
-        console.error('Error in GET teachers endpoint:', error);
+        console.error('Error in GET students endpoint:', error);
         return NextResponse.json(
             { error: 'Internal server error' },
             { status: 500 }

@@ -17,6 +17,7 @@ interface ClassCardProps {
     maxStudents?: number;
     isAdmin?: boolean;
     onDelete?: (id: string) => void;
+    mode?: 'student' | 'admin';
 }
 
 export function ClassCard({
@@ -31,6 +32,7 @@ export function ClassCard({
     maxStudents = 0,
     isAdmin = false,
     onDelete,
+    mode = 'admin',
 }: ClassCardProps) {
 
     // Handle delete button click
@@ -92,7 +94,7 @@ export function ClassCard({
                             onClick={handleDelete}
                             className="bg-white text-red-500 border-red-300 hover:bg-red-50 hover:text-red-700 border"
                         >
-                            Remove
+                            {mode === 'admin' ? 'Remove' : 'Remove Student'}
                         </Button>
                     ) : (
                         <Button variant="outline" asChild className="bg-white text-black border-gray-300 border">
