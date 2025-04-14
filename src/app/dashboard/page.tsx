@@ -56,6 +56,11 @@ export default async function DashboardPage({
     const user = await getUserProfile(_user.id)
     const isTeacher = user.role === 'TEACHER'
 
+    // Redirect admin users to admin page
+    if (user.role === 'ADMIN') {
+        redirect('/admin')
+    }
+
     // Debug enrollments
     if (!isTeacher) {
         console.log("Dashboard: Student user detected, checking enrollments")

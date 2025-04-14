@@ -4,18 +4,13 @@ import React from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
-    Settings,
-    Users,
-    Database,
+
     BookOpen,
-    FileCheck,
     Home,
     ArrowLeft,
-    HardDrive,
     User2,
     FileText,
-    CheckSquare,
-    Wrench
+
 } from 'lucide-react';
 
 interface AdminLayoutProps {
@@ -31,10 +26,10 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         { name: 'Users', href: '/admin/users', icon: <User2 className="w-5 h-5" /> },
         { name: 'Classes', href: '/admin/classes', icon: <BookOpen className="w-5 h-5" /> },
         { name: 'Assignments', href: '/admin/assignments', icon: <FileText className="w-5 h-5" /> },
-        { name: 'Submissions', href: '/admin/submissions', icon: <CheckSquare className="w-5 h-5" /> },
-        { name: 'Fix Submissions', href: '/admin/fix-submissions', icon: <Wrench className="w-5 h-5" /> },
-        { name: 'Fix Foreign Key', href: '/admin/fix-submissions/foreign-key', icon: <Database className="w-5 h-5" /> },
-        { name: 'Fix Assignment Files', href: '/admin/fix-submissions/assignment-files', icon: <FileCheck className="w-5 h-5" /> },
+        // { name: 'Submissions', href: '/admin/submissions', icon: <CheckSquare className="w-5 h-5" /> },
+        // { name: 'Fix Submissions', href: '/admin/fix-submissions', icon: <Wrench className="w-5 h-5" /> },
+        // { name: 'Fix Foreign Key', href: '/admin/fix-submissions/foreign-key', icon: <Database className="w-5 h-5" /> },
+        // { name: 'Fix Assignment Files', href: '/admin/fix-submissions/assignment-files', icon: <FileCheck className="w-5 h-5" /> },
     ];
 
     return (
@@ -48,7 +43,9 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                 </div>
                 <nav className="mt-5 px-4 space-y-1">
                     {navigation.map((item) => {
-                        const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
+                        const isActive = item.href === '/admin'
+                            ? pathname === '/admin'
+                            : pathname.startsWith(`${item.href}/`) || pathname === item.href;
                         return (
                             <Link
                                 key={item.name}
