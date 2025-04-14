@@ -104,7 +104,7 @@ export function ClassCard({
 
                     {isAdmin && (
                         <div className="flex gap-2">
-                            <Link href={`/admin/classes/${id}/students`}>
+                            <Link href={`/admin/classes/${id}/details`}>
                                 <Button variant="outline" size="sm" className="h-full py-2 px-3 border-gray-200 hover:bg-blue-50 bg-white">
                                     <GraduationCap className="h-4 w-4 text-blue-600" />
                                     <span className="ml-2">Manage</span>

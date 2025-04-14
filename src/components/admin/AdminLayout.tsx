@@ -80,8 +80,8 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
             {/* Main content */}
             <div className="flex-1">
-                <div className="py-6 px-4 sm:px-6 lg:px-8">
-                    <div className="max-w-4xl mx-auto">
+                <div className="py-6 sm:px-1 lg:px-2">
+                    <div className="max-w-6xl mx-auto">
                         {children}
                     </div>
                 </div>

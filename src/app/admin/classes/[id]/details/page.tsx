@@ -38,6 +38,7 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import AdminLayout from '@/components/admin/AdminLayout';
 
 type Student = {
     id: string;
@@ -290,249 +291,251 @@ export default function ClassStudentsPage({ params }: { params: { id: string } }
     }
 
     return (
-        <div className="max-w-7xl h-screen mx-auto p-8 mb-auto">
-            {/* Header with navigation */}
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-8">
-                <div className="flex items-center mb-4 md:mb-0">
+        <AdminLayout>
+            <div className="max-w-7xl h-screen mx-auto p-8 mb-auto">
+                {/* Header with navigation */}
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-8">
+                    <div className="flex items-center mb-4 md:mb-0">
+                        <Button
+                            variant="outline"
+                            onClick={() => router.back()}
+                            className="mr-4 bg-white"
+                        >
+                            <ArrowLeft className="mr-2 h-4 w-4" />
+                            Back
+                        </Button>
+                        <div>
+                            <h1 className="text-3xl font-bold text-gray-900">{classDetails.name}</h1>
+                            <p className="text-gray-500">Class Students Management</p>
+                        </div>
+                    </div>
                     <Button
-                        variant="outline"
-                        onClick={() => router.back()}
-                        className="mr-4 bg-white"
+                        className="bg-blue-400 text-white hover:bg-blue-500"
+                        onClick={handleAddClick}
                     >
-                        <ArrowLeft className="mr-2 h-4 w-4" />
-                        Back
+                        <UserPlus className="mr-2 h-4 w-4" />
+                        Add Student
                     </Button>
-                    <div>
-                        <h1 className="text-3xl font-bold text-gray-900">{classDetails.name}</h1>
-                        <p className="text-gray-500">Class Students Management</p>
+                </div>
+
+                {/* Class info and student search */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                    <Card className="md:col-span-2 bg-white">
+                        <CardHeader className="pb-0">
+                            <CardTitle className="text-xl">Class Information</CardTitle>
+                        </CardHeader>
+                        <CardContent className="pt-4">
+                            <div className="flex flex-col space-y-3">
+                                <div className="flex items-center">
+                                    <GraduationCap className="h-5 w-5 mr-2 text-gray-500" />
+                                    <span className="text-gray-700">{students.length} students enrolled</span>
+                                </div>
+                                <div className="flex items-center">
+                                    <User className="h-5 w-5 mr-2 text-gray-500" />
+                                    <span className="text-gray-700">Teacher: {classDetails.teacher_name}</span>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <div className="relative">
+                        <div className="relative flex-grow">
+                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <Search className="h-4 w-4 text-gray-400" />
+                            </div>
+                            <input
+                                type="text"
+                                className="input pl-10 w-full"
+                                placeholder="Search students..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                            />
+                        </div>
                     </div>
                 </div>
-                <Button
-                    className="bg-blue-400 text-white hover:bg-blue-500"
-                    onClick={handleAddClick}
-                >
-                    <UserPlus className="mr-2 h-4 w-4" />
-                    Add Student
-                </Button>
-            </div>
 
-            {/* Class info and student search */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                <Card className="md:col-span-2 bg-white">
-                    <CardHeader className="pb-0">
-                        <CardTitle className="text-xl">Class Information</CardTitle>
-                    </CardHeader>
-                    <CardContent className="pt-4">
-                        <div className="flex flex-col space-y-3">
-                            <div className="flex items-center">
-                                <GraduationCap className="h-5 w-5 mr-2 text-gray-500" />
-                                <span className="text-gray-700">{students.length} students enrolled</span>
-                            </div>
-                            <div className="flex items-center">
-                                <User className="h-5 w-5 mr-2 text-gray-500" />
-                                <span className="text-gray-700">Teacher: {classDetails.teacher_name}</span>
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
-
-                <div className="relative">
-                    <div className="relative flex-grow">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                            <Search className="h-4 w-4 text-gray-400" />
-                        </div>
-                        <input
-                            type="text"
-                            className="input pl-10 w-full"
-                            placeholder="Search students..."
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                        />
-                    </div>
-                </div>
-            </div>
-
-            {/* Students list */}
-            <div className="bg-white rounded-lg shadow overflow-hidden">
-                <div className="relative overflow-x-auto">
-                    <Table>
-                        <TableHeader>
-                            <TableRow className="bg-gray-50">
-                                <TableHead>Student</TableHead>
-                                <TableHead>Email</TableHead>
-                                <TableHead>Enrolled On</TableHead>
-                                <TableHead className="text-right">Actions</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {filteredStudents.length === 0 ? (
-                                <TableRow>
-                                    <TableCell colSpan={4} className="text-center py-10 text-gray-500">
-                                        {searchQuery ? (
-                                            <>
-                                                <div className="flex justify-center mb-2">
-                                                    <Search className="h-10 w-10 text-gray-300" />
-                                                </div>
-                                                <p className="font-medium">No students found matching "{searchQuery}"</p>
-                                                <p className="text-sm mt-1">Try adjusting your search criteria</p>
-                                            </>
-                                        ) : (
-                                            <>
-                                                <div className="flex justify-center mb-2">
-                                                    <UserRound className="h-10 w-10 text-gray-300" />
-                                                </div>
-                                                <p className="font-medium">No students enrolled in this class</p>
-                                                <p className="text-sm mt-1">Add students to get started</p>
-                                            </>
-                                        )}
-                                    </TableCell>
+                {/* Students list */}
+                <div className="bg-white rounded-lg shadow overflow-hidden">
+                    <div className="relative overflow-x-auto">
+                        <Table>
+                            <TableHeader>
+                                <TableRow className="bg-gray-50">
+                                    <TableHead>Student</TableHead>
+                                    <TableHead>Email</TableHead>
+                                    <TableHead>Enrolled On</TableHead>
+                                    <TableHead className="text-right">Actions</TableHead>
                                 </TableRow>
-                            ) : (
-                                filteredStudents.map((student) => (
-                                    <TableRow key={student.id} className="hover:bg-gray-50 border-t border-gray-100">
-                                        <TableCell className="font-medium">
-                                            <div className="flex items-center">
-                                                <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center mr-3 overflow-hidden">
-                                                    {student.avatar ? (
-                                                        <img
-                                                            src={student.avatar}
-                                                            alt={student.name}
-                                                            className="w-full h-full object-cover"
-                                                        />
-                                                    ) : (
-                                                        <UserRound className="h-5 w-5 text-gray-500" />
-                                                    )}
-                                                </div>
-                                                <div className="font-medium text-gray-900">{student.name}</div>
-                                            </div>
-                                        </TableCell>
-                                        <TableCell className="text-gray-600">{student.email}</TableCell>
-                                        <TableCell className="text-gray-600">
-                                            <div className="flex items-center">
-                                                <CalendarClock className="h-4 w-4 mr-1 text-gray-400" />
-                                                {formatDate(student.enrolledAt)}
-                                            </div>
-                                        </TableCell>
-                                        <TableCell className="text-right">
-                                            <Button
-                                                variant="outline"
-                                                size="sm"
-                                                className="h-9 px-3 border-gray-200 hover:bg-red-50 text-red-600 bg-white"
-                                                onClick={() => handleRemoveClick(student)}
-                                            >
-                                                <Trash2 className="h-4 w-4" />
-                                                <span className="ml-2 hidden sm:inline">Remove</span>
-                                            </Button>
+                            </TableHeader>
+                            <TableBody>
+                                {filteredStudents.length === 0 ? (
+                                    <TableRow>
+                                        <TableCell colSpan={4} className="text-center py-10 text-gray-500">
+                                            {searchQuery ? (
+                                                <>
+                                                    <div className="flex justify-center mb-2">
+                                                        <Search className="h-10 w-10 text-gray-300" />
+                                                    </div>
+                                                    <p className="font-medium">No students found matching "{searchQuery}"</p>
+                                                    <p className="text-sm mt-1">Try adjusting your search criteria</p>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <div className="flex justify-center mb-2">
+                                                        <UserRound className="h-10 w-10 text-gray-300" />
+                                                    </div>
+                                                    <p className="font-medium">No students enrolled in this class</p>
+                                                    <p className="text-sm mt-1">Add students to get started</p>
+                                                </>
+                                            )}
                                         </TableCell>
                                     </TableRow>
-                                ))
-                            )}
-                        </TableBody>
-                    </Table>
-                </div>
-            </div>
-
-            {/* Add Student Dialog */}
-            <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-                <DialogContent className="sm:max-w-md">
-                    <DialogHeader>
-                        <DialogTitle>Add Student to Class</DialogTitle>
-                        <DialogDescription>
-                            Select a student to add to {classDetails.name}
-                        </DialogDescription>
-                    </DialogHeader>
-
-                    <div className="py-4">
-                        <Select value={selectedStudentId} onValueChange={setSelectedStudentId}>
-                            <SelectTrigger className="w-full bg-white focus:none focus:ring-0">
-                                <SelectValue placeholder="Select a student" />
-                            </SelectTrigger>
-                            <SelectContent className="bg-white">
-                                {availableStudents.length === 0 ? (
-                                    <SelectItem value="no-students" disabled>
-                                        No available students
-                                    </SelectItem>
                                 ) : (
-                                    availableStudents.map(student => (
-                                        <SelectItem key={student.id} value={student.id} className="hover:bg-blue-50">
-                                            {student.name}
-                                        </SelectItem>
+                                    filteredStudents.map((student) => (
+                                        <TableRow key={student.id} className="hover:bg-gray-50 border-t border-gray-100">
+                                            <TableCell className="font-medium">
+                                                <div className="flex items-center">
+                                                    <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center mr-3 overflow-hidden">
+                                                        {student.avatar ? (
+                                                            <img
+                                                                src={student.avatar}
+                                                                alt={student.name}
+                                                                className="w-full h-full object-cover"
+                                                            />
+                                                        ) : (
+                                                            <UserRound className="h-5 w-5 text-gray-500" />
+                                                        )}
+                                                    </div>
+                                                    <div className="font-medium text-gray-900">{student.name}</div>
+                                                </div>
+                                            </TableCell>
+                                            <TableCell className="text-gray-600">{student.email}</TableCell>
+                                            <TableCell className="text-gray-600">
+                                                <div className="flex items-center">
+                                                    <CalendarClock className="h-4 w-4 mr-1 text-gray-400" />
+                                                    {formatDate(student.enrolledAt)}
+                                                </div>
+                                            </TableCell>
+                                            <TableCell className="text-right">
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    className="h-9 px-3 border-gray-200 hover:bg-red-50 text-red-600 bg-white"
+                                                    onClick={() => handleRemoveClick(student)}
+                                                >
+                                                    <Trash2 className="h-4 w-4" />
+                                                    <span className="ml-2 hidden sm:inline">Remove</span>
+                                                </Button>
+                                            </TableCell>
+                                        </TableRow>
                                     ))
                                 )}
-                            </SelectContent>
-                        </Select>
+                            </TableBody>
+                        </Table>
                     </div>
+                </div>
 
-                    <DialogFooter className="sm:justify-end gap-2 mt-4">
-                        <Button
-                            variant="outline"
-                            onClick={() => setIsAddDialogOpen(false)}
-                            disabled={isAddingStudent}
-                            className="sm:w-auto bg-white"
-                        >
-                            Cancel
-                        </Button>
-                        <Button
-                            onClick={handleAddConfirm}
-                            disabled={isAddingStudent || !selectedStudentId}
-                            className="sm:w-auto bg-blue-400 text-white hover:bg-blue-500"
-                        >
-                            {isAddingStudent ? (
-                                <>
-                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                    Adding...
-                                </>
-                            ) : (
-                                <>
-                                    <UserPlus className="mr-2 h-4 w-4" />
-                                    Add Student
-                                </>
-                            )}
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+                {/* Add Student Dialog */}
+                <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+                    <DialogContent className="sm:max-w-md">
+                        <DialogHeader>
+                            <DialogTitle>Add Student to Class</DialogTitle>
+                            <DialogDescription>
+                                Select a student to add to {classDetails.name}
+                            </DialogDescription>
+                        </DialogHeader>
 
-            {/* Remove Student Dialog */}
-            <Dialog open={isRemoveDialogOpen} onOpenChange={setIsRemoveDialogOpen}>
-                <DialogContent className="sm:max-w-md">
-                    <DialogHeader>
-                        <DialogTitle className="text-red-600">Remove Student</DialogTitle>
-                        <DialogDescription>
-                            Are you sure you want to remove <span className="font-semibold">{studentToRemove?.name}</span> from this class?
-                            This action cannot be undone.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <DialogFooter className="sm:justify-end gap-2 mt-4">
-                        <Button
-                            variant="outline"
-                            onClick={() => setIsRemoveDialogOpen(false)}
-                            disabled={isRemovingStudent}
-                            className="sm:w-auto bg-white"
-                        >
-                            Cancel
-                        </Button>
-                        <Button
-                            variant="outline"
-                            onClick={handleRemoveConfirm}
-                            disabled={isRemovingStudent}
-                            className="sm:w-auto border border-red-400 text-red-400 hover:bg-red-400 hover:text-white bg-white"
-                        >
-                            {isRemovingStudent ? (
-                                <>
-                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                    Removing...
-                                </>
-                            ) : (
-                                <>
-                                    <Trash2 className="mr-2 h-4 w-4" />
-                                    Remove Student
-                                </>
-                            )}
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-        </div>
+                        <div className="py-4">
+                            <Select value={selectedStudentId} onValueChange={setSelectedStudentId}>
+                                <SelectTrigger className="w-full bg-white focus:none focus:ring-0">
+                                    <SelectValue placeholder="Select a student" />
+                                </SelectTrigger>
+                                <SelectContent className="bg-white">
+                                    {availableStudents.length === 0 ? (
+                                        <SelectItem value="no-students" disabled>
+                                            No available students
+                                        </SelectItem>
+                                    ) : (
+                                        availableStudents.map(student => (
+                                            <SelectItem key={student.id} value={student.id} className="hover:bg-blue-50">
+                                                {student.name}
+                                            </SelectItem>
+                                        ))
+                                    )}
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        <DialogFooter className="sm:justify-end gap-2 mt-4">
+                            <Button
+                                variant="outline"
+                                onClick={() => setIsAddDialogOpen(false)}
+                                disabled={isAddingStudent}
+                                className="sm:w-auto bg-white"
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                onClick={handleAddConfirm}
+                                disabled={isAddingStudent || !selectedStudentId}
+                                className="sm:w-auto bg-blue-400 text-white hover:bg-blue-500"
+                            >
+                                {isAddingStudent ? (
+                                    <>
+                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                        Adding...
+                                    </>
+                                ) : (
+                                    <>
+                                        <UserPlus className="mr-2 h-4 w-4" />
+                                        Add Student
+                                    </>
+                                )}
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+
+                {/* Remove Student Dialog */}
+                <Dialog open={isRemoveDialogOpen} onOpenChange={setIsRemoveDialogOpen}>
+                    <DialogContent className="sm:max-w-md">
+                        <DialogHeader>
+                            <DialogTitle className="text-red-600">Remove Student</DialogTitle>
+                            <DialogDescription>
+                                Are you sure you want to remove <span className="font-semibold">{studentToRemove?.name}</span> from this class?
+                                This action cannot be undone.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <DialogFooter className="sm:justify-end gap-2 mt-4">
+                            <Button
+                                variant="outline"
+                                onClick={() => setIsRemoveDialogOpen(false)}
+                                disabled={isRemovingStudent}
+                                className="sm:w-auto bg-white"
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                variant="outline"
+                                onClick={handleRemoveConfirm}
+                                disabled={isRemovingStudent}
+                                className="sm:w-auto border border-red-400 text-red-400 hover:bg-red-400 hover:text-white bg-white"
+                            >
+                                {isRemovingStudent ? (
+                                    <>
+                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                        Removing...
+                                    </>
+                                ) : (
+                                    <>
+                                        <Trash2 className="mr-2 h-4 w-4" />
+                                        Remove Student
+                                    </>
+                                )}
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+            </div>
+        </AdminLayout>
     );
 } 
