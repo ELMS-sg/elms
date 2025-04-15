@@ -3,6 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
+import { serverSignOut } from "@/lib/actions";
 import {
 
     BookOpen,
@@ -10,6 +11,7 @@ import {
     ArrowLeft,
     User2,
     FileText,
+    LogOut,
 
 } from 'lucide-react';
 
@@ -64,7 +66,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                         );
                     })}
                 </nav>
-                <div className="mt-8 px-4">
+                <div className="mt-8 px-4 space-y-2">
                     <button
                         onClick={() => router.push('/dashboard')}
                         className="w-full flex items-center px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-md"
@@ -72,6 +74,15 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                         <ArrowLeft className="w-5 h-5 mr-2 text-gray-500" />
                         Back to Dashboard
                     </button>
+                    <form action={serverSignOut}>
+                        <button
+                            type="submit"
+                            className="w-full flex items-center px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 hover:text-red-700 rounded-md"
+                        >
+                            <LogOut className="w-5 h-5 mr-2 text-red-500" />
+                            Sign out
+                        </button>
+                    </form>
                 </div>
             </div>
 

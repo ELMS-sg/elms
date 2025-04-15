@@ -15,6 +15,9 @@ import {
     BarChart,
     CheckCircle,
     FileText,
+    Award,
+    AlertCircle,
+    CheckSquare,
 } from "lucide-react"
 import { format, isPast } from "date-fns"
 import { Avatar } from "@/components/Avatar"
@@ -41,6 +44,11 @@ export default async function AssignmentsPage() {
     if (isTeacher) {
         // For teachers
         const teacherAssignments = await getTeacherAssignments()
+        console.log('Teacher assignments with stats:', teacherAssignments.map(a => ({
+            id: a.id,
+            title: a.title,
+            submissionStats: a.submissionStats
+        })))
         assignmentsToGrade = await getAssignmentsToGrade()
 
         // We don't have pending/completed for teachers, just their created assignments
@@ -75,12 +83,19 @@ export default async function AssignmentsPage() {
             ? format(submittedDate, 'MMM d, yyyy')
             : null
 
-        return {
+        const formatted = {
             ...assignment,
             dueDateDisplay,
             isOverdue,
-            submittedDateDisplay
+            submittedDateDisplay,
+            submissionStats: assignment.submissionStats
         }
+        console.log('Formatted assignment:', {
+            id: formatted.id,
+            title: formatted.title,
+            submissionStats: formatted.submissionStats
+        })
+        return formatted
     }
 
     pendingAssignments = pendingAssignments.map(formatAssignmentForDisplay)
@@ -256,7 +271,7 @@ export default async function AssignmentsPage() {
                                 key={submission.id}
                                 className="bg-white rounded-lg shadow-card overflow-hidden hover:shadow-card-hover transition-shadow duration-300 flex flex-col h-full"
                             >
-                                <div className="p-6 flex-grow">
+                                <div className="p-6 flex-grow flex flex-col">
                                     <div className="flex items-center justify-between mb-3">
                                         <span className="px-3 py-1 bg-amber-100 text-amber-800 text-xs font-medium rounded-full">
                                             Needs Grading
@@ -267,40 +282,43 @@ export default async function AssignmentsPage() {
                                         </span>
                                     </div>
                                     <h3 className="text-lg font-semibold text-gray-900 mb-2">{submission.assignment.title}</h3>
-                                    <p className="text-gray-600 text-sm mb-4 line-clamp-2">{submission.assignment.description}</p>
-
-                                    <div className="flex items-center mb-4">
-                                        <div className="flex-shrink-0 mr-3">
-                                            <Avatar
-                                                url={submission.student.avatar}
-                                                name={submission.student.name}
-                                                size="sm"
-                                            />
-                                        </div>
-                                        <div>
-                                            <p className="text-sm font-medium text-gray-900">{submission.student.name}</p>
-                                            <p className="text-xs text-gray-500">Student</p>
-                                        </div>
-                                    </div>
-
-                                    <div className="flex items-center text-sm text-gray-500 mb-4">
-                                        <BookOpen className="w-4 h-4 mr-2" />
-                                        {submission.assignment.course.name}
-                                    </div>
 
                                     {submission.files && submission.files.length > 0 && (
                                         <div className="mb-4">
                                             <p className="text-sm font-medium text-gray-700 mb-2">Submission Files:</p>
-                                            {submission.files.map((file, index) => (
-                                                <div key={index} className="flex items-center justify-between bg-gray-50 p-2 rounded mb-2">
-                                                    <span className="text-sm text-gray-600">{file.file_name}</span>
-                                                    <span className="text-xs text-gray-500">{Math.round(file.file_size / 1024)} KB</span>
-                                                </div>
-                                            ))}
+                                            <div className="max-h-28 overflow-y-auto">
+                                                {submission.files.map((file, index) => (
+                                                    <div key={index} className="flex items-center justify-between bg-gray-50 p-2 rounded mb-2">
+                                                        <span className="text-sm text-gray-600 truncate max-w-[70%]">{file.file_name}</span>
+                                                        <span className="text-xs text-gray-500">{Math.round(file.file_size / 1024)} KB</span>
+                                                    </div>
+                                                ))}
+                                            </div>
                                         </div>
                                     )}
+
+                                    <div className="mt-auto space-y-4">
+                                        <div className="flex items-center text-sm text-gray-500 h-6">
+                                            <BookOpen className="w-4 h-4 mr-2" />
+                                            {submission.assignment.course.name}
+                                        </div>
+
+                                        <div className="flex items-center h-12">
+                                            <div className="flex-shrink-0 mr-3">
+                                                <Avatar
+                                                    url={submission.student.avatar}
+                                                    name={submission.student.name}
+                                                    size="sm"
+                                                />
+                                            </div>
+                                            <div>
+                                                <p className="text-sm font-medium text-gray-900">{submission.student.name}</p>
+                                                <p className="text-xs text-gray-500">Student</p>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
-                                <div className="border-t border-gray-100 p-4 bg-gray-50 flex justify-between">
+                                <div className="border-t border-gray-100 p-4 bg-gray-50 flex justify-between mt-2">
                                     <Link
                                         href={`/dashboard/assignments/${submission.assignment.id}/submissions/${submission.id}/grade`}
                                         className="btn btn-primary w-full"
@@ -334,7 +352,7 @@ export default async function AssignmentsPage() {
                             key={assignment.id}
                             className="bg-white rounded-lg shadow-card overflow-hidden hover:shadow-card-hover transition-shadow duration-300 flex flex-col h-full"
                         >
-                            <div className="p-6 flex-grow">
+                            <div className="p-6 flex-grow flex flex-col">
                                 <div className="flex items-center justify-between mb-3">
                                     <span className={`px-3 py-1 text-xs font-medium rounded-full ${assignment.isOverdue
                                         ? "bg-red-100 text-red-800"
@@ -353,64 +371,55 @@ export default async function AssignmentsPage() {
                                     </span>
                                 </div>
                                 <h3 className="text-lg font-semibold text-gray-900 mb-2">{assignment.title}</h3>
-                                <p className="text-gray-600 text-sm mb-4 line-clamp-2">{assignment.description}</p>
-
-                                {!isTeacher && (
-                                    <div className="flex items-center mb-4">
-                                        <div className="flex-shrink-0 mr-3">
-                                            {assignment.teacher?.avatar ? (
-                                                <Image
-                                                    src={assignment.teacher.avatar}
-                                                    alt={assignment.teacher.name}
-                                                    width={36}
-                                                    height={36}
-                                                    className="rounded-full border border-gray-200"
-                                                />
-                                            ) : (
-                                                <div className="w-9 h-9 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 font-medium">
-                                                    {assignment.teacher?.name.charAt(0).toUpperCase()}
-                                                </div>
-                                            )}
-                                        </div>
-                                        <div>
-                                            <p className="text-sm font-medium text-gray-900">{assignment.teacher?.name}</p>
-                                            <p className="text-xs text-gray-500">Instructor</p>
-                                        </div>
-                                    </div>
-                                )}
-
-                                <div className="flex items-center text-sm text-gray-500 mb-4">
-                                    <BookOpen className="w-4 h-4 mr-2" />
-                                    {assignment.course?.name}
-                                </div>
 
                                 {assignment.files && assignment.files.length > 0 && (
                                     <div className="mb-4">
                                         <p className="text-sm font-medium text-gray-700 mb-2">Assignment Files:</p>
-                                        {assignment.files.map((file, index) => (
-                                            <div key={index} className="flex items-center justify-between bg-gray-50 p-2 rounded mb-2">
-                                                <span className="text-sm text-gray-600">{file.file_name}</span>
-                                                <div className="flex items-center">
-                                                    <span className="text-xs text-gray-500 mr-2">{Math.round(file.file_size / 1024)} KB</span>
-                                                    <a
-                                                        href={file.file_url}
-                                                        target="_blank"
-                                                        rel="noopener noreferrer"
-                                                        className="text-primary-600 hover:text-primary-700"
-                                                    >
-                                                        <Download className="w-4 h-4" />
-                                                    </a>
+                                        <div className="max-h-28 overflow-y-auto">
+                                            {assignment.files.map((file, index) => (
+                                                <div key={index} className="flex items-center justify-between bg-gray-50 p-2 rounded mb-2">
+                                                    <span className="text-sm text-gray-600 truncate max-w-[70%]">{file.file_name}</span>
+                                                    <div className="flex items-center">
+                                                        <span className="text-xs text-gray-500 mr-2">{Math.round(file.file_size / 1024)} KB</span>
+                                                        <a
+                                                            href={file.file_url}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="text-primary-600 hover:text-primary-700"
+                                                        >
+                                                            <Download className="w-4 h-4" />
+                                                        </a>
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        ))}
+                                            ))}
+                                        </div>
                                     </div>
                                 )}
 
-                                <div className="flex items-center justify-between text-sm">
-                                    <span className="font-medium text-gray-700">Points: {assignment.points}</span>
+                                <div className="mt-auto space-y-4">
+                                    <div className="flex items-center text-sm text-gray-500 h-6">
+                                        <BookOpen className="w-4 h-4 mr-2" />
+                                        {assignment.course?.name}
+                                    </div>
+
+                                    {assignment.submissionStats && (
+                                        <div className="bg-blue-50 p-3 rounded-md h-20 flex items-center">
+                                            <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center mr-3">
+                                                <CheckCircle className="w-5 h-5 text-blue-600" />
+                                            </div>
+                                            <div>
+                                                <p className="text-sm font-medium text-gray-900">
+                                                    {assignment.submissionStats.submittedStudents}/{assignment.submissionStats.totalStudents} Submitted
+                                                </p>
+                                                <p className="text-xs text-gray-500">
+                                                    {assignment.submissionStats.submissionRate}% submission rate
+                                                </p>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
-                            <div className="flex justify-between px-6 pb-4 gap-2">
+                            <div className="flex justify-between px-6 pb-4 gap-2 mt-2">
                                 <Link
                                     href={`/dashboard/assignments/${assignment.id}`}
                                     className="btn btn-outline flex-1"
@@ -458,65 +467,144 @@ export default async function AssignmentsPage() {
                                 key={assignment.id}
                                 className="bg-white rounded-lg shadow-card overflow-hidden hover:shadow-card-hover transition-shadow duration-300 flex flex-col h-full"
                             >
-                                <div className="p-6 flex-grow">
+                                <div className="p-6 flex-grow flex flex-col">
                                     <div className="flex items-center justify-between mb-3">
-                                        <span className="px-3 py-1 bg-green-100 text-green-800 text-xs font-medium rounded-full flex items-center">
-                                            <CheckCircle className="w-3 h-3 mr-1" />
-                                            Completed
+                                        <span className="px-3 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">
+                                            {assignment.status === 'completed' ? 'Graded' : 'Submitted'}
                                         </span>
                                         <span className="text-sm text-gray-500 flex items-center">
                                             <Clock className="w-4 h-4 mr-1" />
-                                            Submitted {assignment.submittedDateDisplay}
+                                            Due {assignment.dueDateDisplay}
                                         </span>
                                     </div>
                                     <h3 className="text-lg font-semibold text-gray-900 mb-2">{assignment.title}</h3>
-                                    <p className="text-gray-600 text-sm mb-4 line-clamp-2">{assignment.description}</p>
 
-                                    <div className="flex items-center mb-4">
-                                        <div className="flex-shrink-0 mr-3">
-                                            {assignment.teacher?.avatar ? (
-                                                <Image
-                                                    src={assignment.teacher.avatar}
-                                                    alt={assignment.teacher.name}
-                                                    width={36}
-                                                    height={36}
-                                                    className="rounded-full border border-gray-200"
-                                                />
-                                            ) : (
-                                                <div className="w-9 h-9 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 font-medium">
-                                                    {assignment.teacher?.name.charAt(0).toUpperCase()}
+                                    <div className="mt-auto space-y-4">
+                                        <div className="flex items-center text-sm text-gray-500 h-6">
+                                            <BookOpen className="w-4 h-4 mr-2" />
+                                            {assignment.course?.name}
+                                        </div>
+
+                                        {!isTeacher && assignment.submission?.grade !== null && (
+                                            <div className="bg-green-50 p-3 rounded-md h-16 flex items-center">
+                                                <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center mr-3">
+                                                    <Award className="w-5 h-5 text-green-600" />
                                                 </div>
-                                            )}
-                                        </div>
-                                        <div>
-                                            <p className="text-sm font-medium text-gray-900">{assignment.teacher?.name}</p>
-                                            <p className="text-xs text-gray-500">Instructor</p>
-                                        </div>
-                                    </div>
+                                                <div>
+                                                    <p className="text-sm font-medium text-gray-900">Grade: {assignment.submission.grade}/{assignment.points}</p>
+                                                    <p className="text-xs text-gray-500">
+                                                        {Math.round((assignment.submission.grade / assignment.points) * 100)}% Score
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        )}
 
-                                    <div className="flex items-center text-sm text-gray-500 mb-4">
-                                        <BookOpen className="w-4 h-4 mr-2" />
-                                        {assignment.course?.name}
-                                    </div>
-
-                                    <div className="bg-gray-50 p-4 rounded-lg">
-                                        <div className="flex items-center justify-between mb-2">
-                                            <span className="text-sm font-medium text-gray-700">Grade:</span>
-                                            <span className="text-sm font-bold text-primary-700">
-                                                {assignment.submission?.grade}/{assignment.points}
+                                        {assignment.isLate && (
+                                            <span className="text-amber-600 font-medium flex items-center">
+                                                <AlertCircle className="w-4 h-4 mr-1" />
+                                                Submitted Late
                                             </span>
-                                        </div>
-                                        <p className="text-sm text-gray-600 italic">
-                                            &quot;{assignment.submission?.feedback || "No feedback provided."}&quot;
-                                        </p>
+                                        )}
                                     </div>
                                 </div>
-                                <div className="border-gray-100 pb-4 mx-auto">
+                                <div className="flex justify-between px-6 pb-4 gap-2 mt-2">
                                     <Link
                                         href={`/dashboard/assignments/${assignment.id}`}
-                                        className="rounded-xl px-4 py-2 border-[1px] border-gray-300 w-full"
+                                        className="btn btn-outline flex-1"
                                     >
                                         View Details
+                                    </Link>
+                                    {isTeacher && assignment.status !== 'completed' && (
+                                        <Link
+                                            href={`/dashboard/assignments/${assignment.id}/grade`}
+                                            className="btn btn-primary flex items-center justify-center gap-2 flex-1"
+                                        >
+                                            <CheckSquare className="w-4 h-4" />
+                                            <span>
+                                                Grade
+                                            </span>
+                                        </Link>
+                                    )}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {/* Add a new section for teachers to view completed assignments */}
+            {isTeacher && (
+                <div className="mb-10">
+                    <div className="flex items-center justify-between mb-4">
+                        <h2 className="text-xl font-bold text-gray-900">Assignment Submissions Overview</h2>
+                        <Link href="/dashboard/submissions" className="text-sm text-primary-600 hover:text-primary-700 flex items-center">
+                            View all <ChevronRight className="ml-1 w-4 h-4" />
+                        </Link>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        {pendingAssignments.slice(0, 3).map((assignment) => (
+                            <div
+                                key={assignment.id}
+                                className="bg-white rounded-lg shadow-card overflow-hidden hover:shadow-card-hover transition-shadow duration-300 flex flex-col h-full"
+                            >
+                                <div className="p-6 flex-grow flex flex-col">
+                                    <div className="flex items-center justify-between mb-3">
+                                        <span className="px-3 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded-full">
+                                            {assignment.assignment_type
+                                                ? assignment.assignment_type.charAt(0).toUpperCase() + assignment.assignment_type.slice(1)
+                                                : "Assignment"
+                                            }
+                                        </span>
+                                        <span className="text-sm text-gray-500 flex items-center">
+                                            <Clock className="w-4 h-4 mr-1" />
+                                            Due {assignment.dueDateDisplay}
+                                        </span>
+                                    </div>
+                                    <h3 className="text-lg font-semibold text-gray-900 mb-2">{assignment.title}</h3>
+
+                                    <div className="mt-auto space-y-4">
+                                        <div className="flex items-center text-sm text-gray-500 h-6">
+                                            <BookOpen className="w-4 h-4 mr-2" />
+                                            {assignment.course?.name}
+                                        </div>
+
+                                        <div className="bg-blue-50 p-3 rounded-md flex items-center h-20">
+                                            <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center mr-3">
+                                                <CheckCircle className="w-5 h-5 text-blue-600" />
+                                            </div>
+                                            <div>
+                                                {assignment.submissionStats ? (
+                                                    <>
+                                                        <p className="text-sm font-medium text-gray-900">
+                                                            {assignment.submissionStats.submittedStudents}/{assignment.submissionStats.totalStudents} Submitted
+                                                        </p>
+                                                        <p className="text-xs text-gray-500">
+                                                            {assignment.submissionStats.submissionRate}% submission rate
+                                                        </p>
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <p className="text-sm font-medium text-gray-900">0/0 Submitted</p>
+                                                        <p className="text-xs text-gray-500">No students enrolled</p>
+                                                    </>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="flex justify-between px-6 pb-4 gap-2 mt-2">
+                                    <Link
+                                        href={`/dashboard/assignments/${assignment.id}`}
+                                        className="btn btn-outline flex-1"
+                                    >
+                                        View Details
+                                    </Link>
+                                    <Link
+                                        href={`/dashboard/assignments/${assignment.id}/submissions`}
+                                        className="btn btn-primary"
+                                    >
+                                        View Submissions
                                     </Link>
                                 </div>
                             </div>
@@ -535,8 +623,15 @@ export default async function AssignmentsPage() {
                                 <CheckCircle className="w-6 h-6 text-primary-600" />
                             </div>
                             <div>
-                                <p className="text-sm text-gray-500">Submission Rate</p>
-                                <p className="text-2xl font-bold text-gray-900">78%</p>
+                                <p className="text-sm text-gray-500">Average Submission Rate</p>
+                                <p className="text-2xl font-bold text-gray-900">
+                                    {pendingAssignments.length > 0
+                                        ? Math.round(
+                                            pendingAssignments.reduce((sum, a) =>
+                                                sum + (a.submissionStats?.submissionRate || 0), 0) / pendingAssignments.length
+                                        )
+                                        : 0}%
+                                </p>
                             </div>
                         </div>
                         <div className="bg-gray-50 rounded-lg p-4 flex items-center">
@@ -544,8 +639,11 @@ export default async function AssignmentsPage() {
                                 <Clock className="w-6 h-6 text-amber-600" />
                             </div>
                             <div>
-                                <p className="text-sm text-gray-500">Average Grade Time</p>
-                                <p className="text-2xl font-bold text-gray-900">1.5 days</p>
+                                <p className="text-sm text-gray-500">Total Submissions</p>
+                                <p className="text-2xl font-bold text-gray-900">
+                                    {pendingAssignments.reduce((sum, a) =>
+                                        sum + (a.submissionStats?.submittedStudents || 0), 0)}
+                                </p>
                             </div>
                         </div>
                         <div className="bg-gray-50 rounded-lg p-4 flex items-center">
@@ -553,8 +651,12 @@ export default async function AssignmentsPage() {
                                 <BarChart className="w-6 h-6 text-green-600" />
                             </div>
                             <div>
-                                <p className="text-sm text-gray-500">Average Score</p>
-                                <p className="text-2xl font-bold text-gray-900">82%</p>
+                                <p className="text-sm text-gray-500">Total Students</p>
+                                <p className="text-2xl font-bold text-gray-900">
+                                    {pendingAssignments.length > 0
+                                        ? Math.max(...pendingAssignments.map(a => a.submissionStats?.totalStudents || 0))
+                                        : 0}
+                                </p>
                             </div>
                         </div>
                     </div>

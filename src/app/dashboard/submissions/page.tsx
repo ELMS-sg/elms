@@ -6,11 +6,9 @@ import Image from 'next/image'
 import Link from 'next/link'
 import {
     Loader2,
-    Filter,
     Search,
     FileText,
     CheckCircle,
-    XCircle,
     Clock,
     ChevronDown,
     Download,
@@ -169,16 +167,19 @@ export default function SubmissionsPage() {
             <div className="mb-8 bg-white p-4 rounded-lg shadow-card">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                            <Search className="h-5 w-5 text-gray-400" />
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Search</label>
+                        <div className="relative flex-grow">
+                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <Search className="h-4 w-4 text-gray-400" />
+                            </div>
+                            <input
+                                type="text"
+                                className="input pl-10 w-full"
+                                placeholder="Search students..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                            />
                         </div>
-                        <input
-                            type="text"
-                            placeholder="Search by student or assignment"
-                            className="input pl-10 w-full"
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                        />
                     </div>
 
                     <div className="relative">

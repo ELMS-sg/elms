@@ -198,6 +198,50 @@ export async function getStudentAssignments() {
 
         // Format assignments with submission status
         const now = new Date()
+
+        // Get class ids
+        console.log('getStudentAssignments: Getting enrollments for classIds:', classIds)
+
+        // Get total students in each class using direct count
+        const classEnrollmentCounts = {}
+
+        for (const classId of classIds) {
+            // Directly count enrollments per class
+            const { data: enrollments, error: enrollmentError } = await supabase
+                .from('class_enrollments')
+                .select('id')
+                .eq('class_id', classId)
+
+            if (enrollmentError) {
+                console.error(`Error fetching enrollments for class ${classId}:`, enrollmentError)
+                classEnrollmentCounts[classId] = 0
+            } else {
+                classEnrollmentCounts[classId] = enrollments?.length || 0
+                console.log(`Class ${classId} has ${enrollments?.length || 0} students enrolled`)
+            }
+        }
+
+        console.log('getStudentAssignments: Class enrollment counts:', classEnrollmentCounts)
+
+        // Get all submissions for these assignments
+        const { data: allSubmissions, error: allSubmissionsError } = await supabase
+            .from('assignment_submissions')
+            .select('assignment_id, student_id')
+            .in('assignment_id', assignmentIds)
+
+        if (allSubmissionsError) {
+            console.error('Error fetching all submissions:', allSubmissionsError)
+        }
+
+        // Group submissions by assignment_id
+        const assignmentSubmissions = {}
+        allSubmissions?.forEach(sub => {
+            if (!assignmentSubmissions[sub.assignment_id]) {
+                assignmentSubmissions[sub.assignment_id] = new Set()
+            }
+            assignmentSubmissions[sub.assignment_id].add(sub.student_id)
+        })
+
         const formattedAssignments = assignments.map(assignment => {
             const submission = submissions?.find(s => s.assignment_id === assignment.id)
             const dueDate = new Date(assignment.due_date)
@@ -220,6 +264,10 @@ export async function getStudentAssignments() {
 
             const daysRemaining = Math.ceil((dueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
 
+            // Calculate submission statistics
+            const totalStudents = classEnrollmentCounts[assignment.class_id] || 0
+            const submittedStudents = assignmentSubmissions[assignment.id]?.size || 0
+
             return {
                 ...assignment,
                 teacher: teacherMap[assignment.teacher_id] || { name: 'Unknown Teacher' },
@@ -228,7 +276,12 @@ export async function getStudentAssignments() {
                 status,
                 isLate,
                 assignment_type: assignment.assignment_type || 'homework',
-                daysRemaining: daysRemaining > 0 ? daysRemaining : 0
+                daysRemaining: daysRemaining > 0 ? daysRemaining : 0,
+                submissionStats: {
+                    totalStudents,
+                    submittedStudents,
+                    submissionRate: totalStudents > 0 ? Math.round((submittedStudents / totalStudents) * 100) : 0
+                }
             }
         })
 
@@ -294,11 +347,85 @@ export async function getTeacherAssignments() {
 
         console.log('getTeacherAssignments: Assignments fetched', assignments?.length || 0)
 
-        return assignments.map(assignment => ({
-            ...assignment,
-            course: assignment.classes,
-            assignment_type: assignment.assignment_type || 'homework' // Ensure assignment_type is always defined
-        }))
+        // Get total students in each class
+        console.log('getTeacherAssignments: Fetching class enrollments for classIds:', classIds)
+        const classEnrollmentCounts = {}
+
+        for (const classId of classIds) {
+            // Directly count enrollments per class
+            const { data: enrollments, error: enrollmentError } = await supabase
+                .from('class_enrollments')
+                .select('id')
+                .eq('class_id', classId)
+
+            if (enrollmentError) {
+                console.error(`Error fetching enrollments for class ${classId}:`, enrollmentError)
+                classEnrollmentCounts[classId] = 0
+            } else {
+                classEnrollmentCounts[classId] = enrollments?.length || 0
+                console.log(`Class ${classId} has ${enrollments?.length || 0} students enrolled`)
+            }
+        }
+
+        console.log('getTeacherAssignments: Class enrollment counts:', classEnrollmentCounts)
+
+        // Get submissions for these assignments
+        const assignmentIds = assignments.map(a => a.id)
+
+        // Use a direct SQL query approach for submissions to ensure we get accurate counts
+        const { data: submissionCounts, error: submissionCountsError } = await supabase
+            .from('assignment_submissions')
+            .select('assignment_id, student_id')
+            .in('assignment_id', assignmentIds)
+
+        if (submissionCountsError) {
+            console.error('Error fetching submission counts:', submissionCountsError)
+            return []
+        }
+
+        console.log('getTeacherAssignments: Submission counts fetched', submissionCounts?.length || 0)
+
+        // Group submissions by assignment_id and count unique students
+        const assignmentSubmissions: Record<string, Set<string>> = {}
+        submissionCounts?.forEach(sub => {
+            if (!assignmentSubmissions[sub.assignment_id]) {
+                assignmentSubmissions[sub.assignment_id] = new Set()
+            }
+            assignmentSubmissions[sub.assignment_id].add(sub.student_id)
+        })
+
+        console.log('getTeacherAssignments: Assignment submissions:', Object.fromEntries(
+            Object.entries(assignmentSubmissions).map(([assignmentId, students]) => [assignmentId, students.size])
+        ))
+
+        const formattedAssignments = assignments.map(assignment => {
+            const totalStudents = classEnrollmentCounts[assignment.class_id] || 0
+            const submittedStudents = assignmentSubmissions[assignment.id]?.size || 0
+
+            const stats = {
+                totalStudents,
+                submittedStudents,
+                submissionRate: totalStudents > 0 ? Math.round((submittedStudents / totalStudents) * 100) : 0
+            }
+
+            console.log('getTeacherAssignments: IMPORTANT - Assignment stats for', assignment.id, assignment.title, {
+                classId: assignment.class_id,
+                totalStudents,
+                submittedStudents,
+                submissionRate: stats.submissionRate,
+                hasSubmissions: !!assignmentSubmissions[assignment.id],
+                submissionIdsForAssignment: assignmentSubmissions[assignment.id] ? Array.from(assignmentSubmissions[assignment.id]) : []
+            })
+
+            return {
+                ...assignment,
+                course: assignment.classes,
+                assignment_type: assignment.assignment_type || 'homework', // Ensure assignment_type is always defined
+                submissionStats: stats
+            }
+        })
+
+        return formattedAssignments
     } catch (error) {
         console.error('Exception in getTeacherAssignments:', error)
         return []
@@ -430,6 +557,54 @@ export async function getAssignmentsToGrade() {
             })
         }
 
+        // Calculate submission statistics for each assignment
+        const assignmentSubmissionStats = {}
+
+        // Get total students in each class
+        console.log('getAssignmentsToGrade: Fetching class enrollments for classIds:', classIds)
+
+        // Get total students in each class using direct count
+        const classEnrollmentCounts = {}
+
+        for (const classId of classIds) {
+            // Directly count enrollments per class
+            const { data: enrollments, error: enrollmentError } = await supabase
+                .from('class_enrollments')
+                .select('id')
+                .eq('class_id', classId)
+
+            if (enrollmentError) {
+                console.error(`Error fetching enrollments for class ${classId}:`, enrollmentError)
+                classEnrollmentCounts[classId] = 0
+            } else {
+                classEnrollmentCounts[classId] = enrollments?.length || 0
+                console.log(`Class ${classId} has ${enrollments?.length || 0} students enrolled`)
+            }
+        }
+
+        console.log('getAssignmentsToGrade: Class enrollment counts:', classEnrollmentCounts)
+
+        // Create a map of assignment_id to submitted students
+        const assignmentSubmissions = {}
+        submissions.forEach(sub => {
+            if (!assignmentSubmissions[sub.assignment_id]) {
+                assignmentSubmissions[sub.assignment_id] = new Set()
+            }
+            assignmentSubmissions[sub.assignment_id].add(sub.student_id)
+        })
+
+        // Calculate statistics for each assignment
+        assignmentDetails?.forEach(assignment => {
+            const totalStudents = classEnrollmentCounts[assignment.class_id] || 0
+            const submittedStudents = assignmentSubmissions[assignment.id]?.size || 0
+
+            assignmentSubmissionStats[assignment.id] = {
+                totalStudents,
+                submittedStudents,
+                submissionRate: totalStudents > 0 ? Math.round((submittedStudents / totalStudents) * 100) : 0
+            }
+        })
+
         // Get submission files
         const submissionIds = submissions.map(s => s.id)
         const { data: files, error: filesError } = await supabase
@@ -450,7 +625,8 @@ export async function getAssignmentsToGrade() {
                 id: submission.id,
                 assignment: assignment ? {
                     ...assignment,
-                    course: assignment.classes
+                    course: assignment.classes,
+                    submissionStats: assignmentSubmissionStats[submission.assignment_id]
                 } : { title: 'Unknown Assignment' },
                 student: studentMap[submission.student_id] || { name: 'Unknown Student' },
                 submitted_at: submission.submitted_at,
