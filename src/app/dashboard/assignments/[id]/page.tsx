@@ -75,15 +75,6 @@ export default async function AssignmentDetailPage({
                     <div className="flex items-center">
                         <Clock className="w-4 h-4 mr-1" />
                         Due {dueDateDisplay}
-                        {isPastDue && !assignment.submission?.grade && (
-                            <div className="bg-red-50 text-red-700 p-4 rounded-lg flex items-start mb-6">
-                                <AlertCircle className="w-5 h-5 mr-2 flex-shrink-0 mt-0.5" />
-                                <div>
-                                    <p className="font-medium">Overdue Assignment</p>
-                                    <p className="text-sm">This assignment is past due. Submit as soon as possible.</p>
-                                </div>
-                            </div>
-                        )}
                     </div>
                     <div className="flex items-center">
                         <BookOpen className="w-4 h-4 mr-1" />
@@ -93,6 +84,16 @@ export default async function AssignmentDetailPage({
                         <span className="font-medium text-gray-700">Points: {assignment.points}</span>
                     </div>
                 </div>
+
+                {isPastDue && !assignment.submission?.grade && (
+                    <div className="bg-red-50 text-red-700 p-4 rounded-lg flex items-start mt-4">
+                        <AlertCircle className="w-5 h-5 mr-2 flex-shrink-0 mt-0.5" />
+                        <div>
+                            <p className="font-medium">Overdue Assignment</p>
+                            <p className="text-sm">This assignment is past due. Submit as soon as possible.</p>
+                        </div>
+                    </div>
+                )}
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
