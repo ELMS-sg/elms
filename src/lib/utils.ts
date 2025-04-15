@@ -32,10 +32,6 @@ export function formatTime(date: Date | string) {
     // Ensure we have a Date object
     const dateObj = date instanceof Date ? date : new Date(date);
 
-    // Add logging to debug timezone issues
-    console.log("Formatting time for date:", dateObj);
-    console.log("Local ISO string:", dateObj.toLocaleString());
-
     // Use the date's local time instead of UTC
     const hours = dateObj.getHours();
     const minutes = dateObj.getMinutes();
@@ -44,7 +40,6 @@ export function formatTime(date: Date | string) {
     const formattedMinutes = minutes.toString().padStart(2, '0');
 
     const formattedTime = `${formattedHours}:${formattedMinutes} ${ampm}`;
-    console.log("Formatted time:", formattedTime);
     return formattedTime;
 }
 
@@ -87,8 +82,6 @@ export function generateRecurringMeetings(
         // Move to next day
         currentDate.setDate(currentDate.getDate() + 1);
     }
-
-    console.log("GENERATE RECURRING MEETINGS", meetings)
 
     return meetings;
 }

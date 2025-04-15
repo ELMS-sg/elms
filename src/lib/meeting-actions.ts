@@ -99,8 +99,6 @@ export async function getUpcomingMeetings(): Promise<Meeting[]> {
     const supabase = await getSupabase()
     const now = new Date()
 
-    console.log("UPCOMING MEETINGS CALLED!!!")
-
     try {
         // Get one-on-one meetings
         const { data: oneOnOneMeetings, error: oneOnOneError } = await supabase
@@ -224,17 +222,8 @@ export async function getUpcomingMeetings(): Promise<Meeting[]> {
         }
 
         // Process recurring class meetings
-        console.log("CLASS DATA", classesData)
-
         for (const classItem of classesData) {
             const classData = user.role === 'TEACHER' ? classItem : classItem.classes
-            console.log("Processing class:", {
-                id: classData.id,
-                name: classData.name,
-                schedule: classData.schedule,
-                start_date: classData.start_date,
-                end_date: classData.end_date
-            });
 
             const teacher = user.role === 'TEACHER'
                 ? { name: user.name, avatar_url: user.avatar_url, title: "Senior Instructor" }
@@ -245,9 +234,7 @@ export async function getUpcomingMeetings(): Promise<Meeting[]> {
                 }
 
             if (classData.schedule) {
-                console.log("Processing schedule:", classData.schedule);
                 const { days, startTime, duration } = parseSchedule(classData.schedule)
-                console.log("Parsed schedule:", { days, startTime, duration });
 
                 const meetingDates = generateRecurringMeetings(
                     new Date(classData.start_date),
@@ -256,16 +243,11 @@ export async function getUpcomingMeetings(): Promise<Meeting[]> {
                     startTime
                 )
 
-                console.log("Generated meeting dates:", meetingDates)
-
                 // Filter for upcoming meetings only
                 const upcomingDates = meetingDates.filter(date => {
                     const isUpcoming = date > now;
-                    console.log("Checking date:", date, "Is upcoming:", isUpcoming, "Current time:", now);
                     return isUpcoming;
                 })
-
-                console.log("Upcoming dates:", upcomingDates)
 
                 // Create meeting objects for each date
                 upcomingDates.forEach(date => {
@@ -295,27 +277,19 @@ export async function getUpcomingMeetings(): Promise<Meeting[]> {
                             name: classData.name
                         }
                     };
-                    console.log("Created meeting:", meeting);
                     meetings.push(meeting)
                 })
             }
         }
-
-        console.log("All meetings before sort:", meetings);
 
         // Sort meetings by date and time
         let sortedMeetings = meetings.sort((a, b) => {
             // Parse the full date and time for comparison
             const dateA = new Date(a.date + ' ' + a.startTime);
             const dateB = new Date(b.date + ' ' + b.startTime);
-            console.log('Comparing dates:', {
-                a: { date: a.date, time: a.startTime, parsed: dateA },
-                b: { date: b.date, time: b.startTime, parsed: dateB }
-            });
             return dateA.getTime() - dateB.getTime();
         });
 
-        console.log("Final sorted meetings:", sortedMeetings);
         return sortedMeetings;
 
     } catch (error) {
