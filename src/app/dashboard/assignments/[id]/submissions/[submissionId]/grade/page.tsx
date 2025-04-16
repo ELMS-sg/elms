@@ -247,29 +247,54 @@ export default function GradeSubmissionPage({ params }: { params: { id: string, 
                                 {submission.files.length === 0 ? (
                                     <p className="text-gray-500">No files submitted</p>
                                 ) : (
-                                    <div className="space-y-2">
-                                        {submission.files.map((file) => (
-                                            <div
-                                                key={file.id}
-                                                className="flex items-center justify-between bg-gray-50 p-3 rounded-lg"
-                                            >
-                                                <div className="flex items-center">
-                                                    <FileText className="w-4 h-4 text-gray-400 mr-2" />
-                                                    <div>
-                                                        <p className="text-sm font-medium text-gray-700">{file.file_name}</p>
-                                                        <p className="text-xs text-gray-500">{(file.file_size / 1024).toFixed(1)} KB</p>
-                                                    </div>
+                                    <div className="space-y-4">
+                                        {submission.files.map((file) => {
+                                            const isVideo = file.file_name.match(/\.(mp4|mov|avi|wmv|flv|mkv|webm)$/i);
+                                            return (
+                                                <div key={file.id} className="rounded-lg">
+                                                    {isVideo ? (
+                                                        <div className="space-y-2">
+                                                            <div className="flex items-center justify-between">
+                                                                <p className="text-sm font-medium text-gray-700">{file.file_name}</p>
+                                                                <a
+                                                                    href={file.file_url}
+                                                                    target="_blank"
+                                                                    rel="noopener noreferrer"
+                                                                    className="text-primary-600 hover:text-primary-700"
+                                                                >
+                                                                    <Download className="w-4 h-4" />
+                                                                </a>
+                                                            </div>
+                                                            <div className="rounded-lg overflow-hidden border border-gray-200">
+                                                                <video
+                                                                    controls
+                                                                    className="w-full h-auto"
+                                                                    src={file.file_url}
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
+                                                            <div className="flex items-center">
+                                                                <FileText className="w-4 h-4 text-gray-400 mr-2" />
+                                                                <div>
+                                                                    <p className="text-sm font-medium text-gray-700">{file.file_name}</p>
+                                                                    <p className="text-xs text-gray-500">{(file.file_size / 1024).toFixed(1)} KB</p>
+                                                                </div>
+                                                            </div>
+                                                            <a
+                                                                href={file.file_url}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                className="text-primary-600 hover:text-primary-700"
+                                                            >
+                                                                <Download className="w-4 h-4" />
+                                                            </a>
+                                                        </div>
+                                                    )}
                                                 </div>
-                                                <a
-                                                    href={file.file_url}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    className="text-primary-600 hover:text-primary-700"
-                                                >
-                                                    <Download className="w-4 h-4" />
-                                                </a>
-                                            </div>
-                                        ))}
+                                            );
+                                        })}
                                     </div>
                                 )}
                             </div>
