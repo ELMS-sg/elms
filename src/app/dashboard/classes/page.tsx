@@ -6,7 +6,6 @@ import { getStudentClasses, getTeacherClasses, requestEnrollment, handleEnrollme
 import {
     BookOpen,
     Search,
-    Filter,
     Clock,
     Calendar,
     Users,
@@ -18,6 +17,7 @@ import {
     BarChart
 } from "lucide-react"
 import { Database } from "@/types/supabase"
+import { ClassSearch } from "@/components/ClassSearch.jsx"
 
 type EnrollmentRequest = {
     id: string;
@@ -37,10 +37,17 @@ export const metadata: Metadata = {
 
 export const dynamic = 'force-dynamic'
 
-export default async function ClassesPage() {
+export default async function ClassesPage({
+    searchParams,
+}: {
+    searchParams: { [key: string]: string | string[] | undefined }
+}) {
     // Get the authenticated user
     const user = await requireServerAuth()
     const isTeacher = user.role === 'TEACHER'
+
+    // Get search query from URL params
+    const searchQuery = typeof searchParams.search === 'string' ? searchParams.search : '';
 
     // Get classes based on user role
     let enrolledClasses = []
@@ -50,40 +57,15 @@ export default async function ClassesPage() {
         enrolledClasses = await getTeacherClasses()
     }
 
+    // Filter classes - only search by class name for simplicity
+    const filteredClasses = searchQuery
+        ? enrolledClasses.filter(classItem =>
+            classItem.name.toLowerCase().includes(searchQuery.toLowerCase())
+        )
+        : enrolledClasses;
+
     // Get enrollment requests if user is a teacher
     const enrollmentRequests = isTeacher ? (await getEnrollmentRequests() as unknown as EnrollmentRequest[]) : []
-
-    // Generate categories based on the actual classes
-    const allClassesCount = enrolledClasses.length
-
-    // Count classes by tag
-    const tagCounts = {}
-    enrolledClasses.forEach(classItem => {
-        classItem.tags.forEach(tag => {
-            tagCounts[tag] = (tagCounts[tag] || 0) + 1
-        })
-    })
-
-    // Count classes by learning method
-    const methodCounts = {}
-    enrolledClasses.forEach(classItem => {
-        methodCounts[classItem.learningMethod] = (methodCounts[classItem.learningMethod] || 0) + 1
-    })
-
-    // Create categories array
-    const categories = [
-        { name: "All Classes", count: allClassesCount, active: true },
-        ...Object.keys(tagCounts).map(tag => ({
-            name: tag,
-            count: tagCounts[tag],
-            active: false
-        })),
-        ...Object.keys(methodCounts).map(method => ({
-            name: method,
-            count: methodCounts[method],
-            active: false
-        }))
-    ]
 
     return (
         <div className="container mx-auto px-4 py-8">
@@ -122,41 +104,8 @@ export default async function ClassesPage() {
                 </div>
             )}
 
-            {/* Search and Filter */}
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-                <div className="flex flex-wrap gap-2">
-                    {categories.map((category, index) => (
-                        <button
-                            key={index}
-                            className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${category.active
-                                ? "bg-primary-100 text-primary-700"
-                                : "bg-white text-gray-600 hover:bg-gray-50"
-                                }`}
-                        >
-                            {category.name}
-                            <span className="ml-1 text-xs rounded-full px-2 py-0.5 bg-white text-gray-500">
-                                {category.count}
-                            </span>
-                        </button>
-                    ))}
-                </div>
-                <div className="flex w-full md:w-auto gap-2">
-                    <div className="relative flex-grow">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                            <Search className="h-4 w-4 text-gray-400" />
-                        </div>
-                        <input
-                            type="text"
-                            className="input pl-10 w-full"
-                            placeholder="Search classes..."
-                        />
-                    </div>
-                    <button className="btn btn-outline flex items-center">
-                        <Filter className="h-4 w-4 mr-2" />
-                        Filter
-                    </button>
-                </div>
-            </div>
+            {/* Real-time Search Bar */}
+            <ClassSearch defaultValue={searchQuery} />
 
             {/* Enrollment Requests Section for Teachers */}
             {isTeacher && enrollmentRequests.length > 0 && (
@@ -232,12 +181,12 @@ export default async function ClassesPage() {
 
             {/* Classes Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {enrolledClasses.length > 0 ? (
-                    enrolledClasses.map((classItem) => (
+                {filteredClasses.length > 0 ? (
+                    filteredClasses.map((classItem) => (
                         <Link
                             href={`/dashboard/classes/${classItem.id}`}
                             key={classItem.id}
-                            className="bg-white rounded-lg shadow-card overflow-hidden hover:shadow-card-hover transition-shadow duration-300"
+                            className="bg-white rounded-lg shadow-card overflow-hidden hover:shadow-card-hover transition-shadow duration-300 flex flex-col h-full"
                         >
                             <div className="relative h-48 w-full">
                                 <Image
@@ -250,7 +199,7 @@ export default async function ClassesPage() {
                                     <span className="text-sm font-medium">{classItem.level}</span>
                                 </div>
                             </div>
-                            <div className="p-5">
+                            <div className="p-5 flex-grow flex flex-col">
                                 <div className="flex flex-wrap gap-2 mb-3">
                                     {classItem.tags.map((tag, index) => (
                                         <span
@@ -268,40 +217,38 @@ export default async function ClassesPage() {
                                     {classItem.description}
                                 </p>
 
-                                <div className="flex items-center text-sm text-gray-500 mb-4">
-                                    <GraduationCap className="h-4 w-4 mr-1" />
-                                    <span>{classItem.teacher}</span>
-                                </div>
+                                <div className="mt-auto space-y-4">
+                                    <div className="flex items-center text-sm text-gray-500">
+                                        <GraduationCap className="h-4 w-4 mr-1" />
+                                        <span>{classItem.teacher}</span>
+                                    </div>
 
-                                <div className="flex items-center text-sm text-gray-500 mb-4">
-                                    <Calendar className="h-4 w-4 mr-1" />
-                                    <span>{classItem.startDate} - {classItem.endDate}</span>
-                                </div>
+                                    <div className="flex items-center text-sm text-gray-500">
+                                        <Calendar className="h-4 w-4 mr-1" />
+                                        <span>{classItem.startDate} - {classItem.endDate}</span>
+                                    </div>
 
-                                <div className="flex items-center text-sm text-gray-500 mb-4">
-                                    {classItem.learningMethod === "Online" ? (
-                                        <>
-                                            <Globe className="h-4 w-4 mr-1 text-primary-600" />
-                                            <span>Online Class</span>
-                                        </>
-                                    ) : classItem.learningMethod === "Offline" ? (
-                                        <>
-                                            <MapPin className="h-4 w-4 mr-1 text-accent-red" />
-                                            <span>{classItem.location}</span>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <Globe className="h-4 w-4 mr-1 text-accent-green" />
-                                            <span>Hybrid - {classItem.location}</span>
-                                        </>
-                                    )}
+                                    <div className="flex items-center text-sm text-gray-500">
+                                        {classItem.learningMethod === "Online" ? (
+                                            <>
+                                                <Globe className="h-4 w-4 mr-1 text-primary-600" />
+                                                <span>Online Class</span>
+                                            </>
+                                        ) : classItem.learningMethod === "Offline" ? (
+                                            <>
+                                                <MapPin className="h-4 w-4 mr-1 text-accent-red" />
+                                                <span>{classItem.location}</span>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Globe className="h-4 w-4 mr-1 text-accent-green" />
+                                                <span>Hybrid - {classItem.location}</span>
+                                            </>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
-                            <div className="bg-gray-50 px-5 py-3 flex justify-between items-center">
-                                <div className="flex items-center text-sm text-gray-500">
-                                    <Users className="h-4 w-4 mr-1" />
-                                    <span>{classItem.totalStudents} students</span>
-                                </div>
+                            <div className="bg-white px-5 py-3 flex justify-between items-center mt-auto">
                                 <div className="text-primary-600 flex items-center text-sm font-medium">
                                     View Details
                                     <ChevronRight className="h-4 w-4 ml-1" />
@@ -314,11 +261,16 @@ export default async function ClassesPage() {
                         <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gray-100 text-gray-400 mb-4">
                             <BookOpen className="h-8 w-8" />
                         </div>
-                        <h3 className="text-lg font-semibold text-gray-900 mb-2">No Classes Found</h3>
+                        <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                            {searchQuery ? `No classes matching "${searchQuery}"` : "No Classes Found"}
+                        </h3>
                         <p className="text-gray-600 max-w-md mx-auto mb-6">
-                            {user.role === 'STUDENT'
-                                ? "You are not enrolled in any classes yet. Explore our course catalog to find classes that interest you."
-                                : "You are not teaching any classes yet. Contact an administrator to set up your teaching schedule."}
+                            {searchQuery
+                                ? "Try a different search term or check out all available classes."
+                                : user.role === 'STUDENT'
+                                    ? "You are not enrolled in any classes yet. Explore our course catalog to find classes that interest you."
+                                    : "You are not teaching any classes yet. Contact an administrator to set up your teaching schedule."
+                            }
                         </p>
                         {user.role === 'STUDENT' && (
                             <Link href="/dashboard/explore" className="btn btn-primary">
@@ -330,7 +282,7 @@ export default async function ClassesPage() {
             </div>
 
             {/* Explore More Classes - Only for students */}
-            {user.role === 'STUDENT' && enrolledClasses.length > 0 && (
+            {user.role === 'STUDENT' && filteredClasses.length > 0 && (
                 <div className="mt-12 bg-white rounded-lg shadow-card p-6 text-center">
                     <div className="mb-4">
                         <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary-50 text-primary-600 mb-4">
@@ -349,7 +301,7 @@ export default async function ClassesPage() {
             )}
 
             {/* Teacher-specific Analytics Section */}
-            {isTeacher && enrolledClasses.length > 0 && (
+            {isTeacher && filteredClasses.length > 0 && (
                 <div className="mt-12 bg-white rounded-lg shadow-card p-6">
                     <h2 className="text-xl font-bold text-gray-900 mb-4">Teaching Analytics</h2>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -360,7 +312,7 @@ export default async function ClassesPage() {
                             <div>
                                 <p className="text-sm text-gray-500">Total Students</p>
                                 <p className="text-2xl font-bold text-gray-900">
-                                    {enrolledClasses.reduce((total, cls) => total + cls.totalStudents, 0)}
+                                    {filteredClasses.reduce((total, cls) => total + cls.totalStudents, 0)}
                                 </p>
                             </div>
                         </div>
@@ -370,7 +322,7 @@ export default async function ClassesPage() {
                             </div>
                             <div>
                                 <p className="text-sm text-gray-500">Teaching Hours</p>
-                                <p className="text-2xl font-bold text-gray-900">{enrolledClasses.length * 24}</p>
+                                <p className="text-2xl font-bold text-gray-900">{filteredClasses.length * 24}</p>
                             </div>
                         </div>
                         <div className="bg-gray-50 rounded-lg p-4 flex items-center">
