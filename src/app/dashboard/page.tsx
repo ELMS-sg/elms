@@ -10,6 +10,7 @@ import {
     Users,
     CheckCircle,
     ArrowRight,
+    Video
 } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
@@ -17,6 +18,7 @@ import { redirect } from "next/navigation"
 import { Avatar } from "@/components/Avatar"
 import { getUserProfile } from "@/lib/user-actions"
 import { getSupabaseRouteHandler } from "@/lib/supabase/client"
+import { getUpcomingMeetings } from "@/lib/meeting-actions"
 
 export const dynamic = "force-dynamic"
 
@@ -61,6 +63,9 @@ export default async function DashboardPage({
         redirect('/admin')
     }
 
+    // Fetch real upcoming meetings
+    const upcomingMeetings = await getUpcomingMeetings()
+
     // Debug enrollments
     if (!isTeacher) {
         console.log("Dashboard: Student user detected, checking enrollments")
@@ -97,16 +102,10 @@ export default async function DashboardPage({
         },
         {
             label: "Scheduled Meetings",
-            value: "5",
+            value: upcomingMeetings.length.toString(),
             icon: <Calendar className="w-5 h-5 text-accent-green" />,
             color: "bg-green-50 text-green-700",
-        },
-        {
-            label: "Total Students",
-            value: "42",
-            icon: <Users className="w-5 h-5 text-accent-red" />,
-            color: "bg-red-50 text-red-700",
-        },
+        }
     ] : [
         {
             label: "Courses Enrolled",
@@ -122,13 +121,13 @@ export default async function DashboardPage({
         },
         {
             label: "Upcoming Meetings",
-            value: "2",
+            value: upcomingMeetings.length.toString(),
             icon: <Calendar className="w-5 h-5 text-accent-green" />,
             color: "bg-green-50 text-green-700",
         },
         {
-            label: "Course Progress",
-            value: "68%",
+            label: "Available Courses",
+            value: "12",
             icon: <BarChart3 className="w-5 h-5 text-accent-red" />,
             color: "bg-red-50 text-red-700",
         },
@@ -211,7 +210,7 @@ export default async function DashboardPage({
     ]
 
     return (
-        <div className="py-6">
+        <div className="pt-8 pb-6">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 {/* Welcome section */}
                 <div className="mb-8">
@@ -268,74 +267,87 @@ export default async function DashboardPage({
                             </div>
                             <div className="border-t border-gray-200 pt-4">
                                 {isTeacher ? (
-                                    <div className="flex justify-between items-center mb-2">
-                                        <span className="text-sm font-medium text-gray-500">Classes in Progress</span>
-                                        <span className="text-sm font-medium text-gray-900">4/5</span>
+                                    <div>
+                                        <p className="text-sm text-gray-500 mb-2">You're currently teaching {stats[0].value} classes and have {upcomingMeetings.length} upcoming meetings.</p>
+                                        <Link href="/dashboard/classes" className="text-sm text-primary-600 hover:text-primary-700">
+                                            View your teaching schedule →
+                                        </Link>
                                     </div>
                                 ) : (
-                                    <div className="flex justify-between items-center mb-2">
-                                        <span className="text-sm font-medium text-gray-500">Course Completion</span>
-                                        <span className="text-sm font-medium text-gray-900">68%</span>
+                                    <div>
+                                        <p className="text-sm text-gray-500 mb-2">You're enrolled in {stats[0].value} courses and have {upcomingMeetings.length} upcoming meetings.</p>
+                                        <Link href="/dashboard/classes" className="text-sm text-primary-600 hover:text-primary-700">
+                                            View your learning progress →
+                                        </Link>
                                     </div>
                                 )}
-                                <div className="w-full bg-gray-200 rounded-full h-2">
-                                    <div className="bg-primary-600 h-2 rounded-full" style={{ width: isTeacher ? "80%" : "68%" }}></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Upcoming Meetings */}
+                    <div className="bg-white overflow-hidden shadow-card rounded-lg">
+                        <div className="p-6">
+                            <div className="flex items-center justify-between mb-4">
+                                <h2 className="text-lg font-semibold text-gray-900">Upcoming Meetings</h2>
+                                <Link href="/dashboard/meetings" className="text-sm text-primary-600 hover:text-primary-700 flex items-center">
+                                    View all <ArrowRight className="ml-1 w-4 h-4" />
+                                </Link>
+                            </div>
+                            <div className="space-y-4">
+                                {upcomingMeetings.length > 0 ? (
+                                    upcomingMeetings.slice(0, 3).map((meeting) => (
+                                        <div key={meeting.id} className="flex items-start">
+                                            <div className="flex-shrink-0 mt-1">
+                                                <div className="p-2 rounded-md bg-gray-100 text-gray-600">
+                                                    {meeting.type === "ONE_ON_ONE" ? (
+                                                        <Users className="w-4 h-4" />
+                                                    ) : (
+                                                        <Video className="w-4 h-4" />
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <div className="ml-3">
+                                                <p className="text-sm font-medium text-gray-900">{meeting.title}</p>
+                                                <div className="flex items-center mt-1">
+                                                    <Clock className="w-3 h-3 text-gray-500 mr-1" />
+                                                    <p className="text-xs text-gray-500">{meeting.displayDate}, {meeting.startTime}</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))
+                                ) : (
+                                    <div className="text-center py-4">
+                                        <p className="text-sm text-gray-500">No upcoming meetings</p>
+                                        <Link href="/dashboard/meetings" className="text-sm text-primary-600 hover:text-primary-700 mt-2 inline-block">
+                                            Schedule a meeting
+                                        </Link>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Achievement */}
+                    <div className="bg-white overflow-hidden shadow-card rounded-lg">
+                        <div className="p-6">
+                            <div className="flex items-center justify-between mb-4">
+                                <h2 className="text-lg font-semibold text-gray-900">Achievement</h2>
+                            </div>
+                            <div className="text-center py-6">
+                                <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-gray-100 text-accent-yellow mb-3">
+                                    <GraduationCap className="h-6 w-6" />
                                 </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Upcoming Events */}
-                    <div className="bg-white overflow-hidden shadow-card rounded-lg">
-                        <div className="p-6">
-                            <div className="flex items-center justify-between mb-4">
-                                <h2 className="text-lg font-semibold text-gray-900">Upcoming Events</h2>
-                                <Link href="/dashboard/calendar" className="text-sm text-primary-600 hover:text-primary-700 flex items-center">
-                                    View all <ArrowRight className="ml-1 w-4 h-4" />
-                                </Link>
-                            </div>
-                            <div className="space-y-4">
-                                {upcomingEvents.map((event, index) => (
-                                    <div key={index} className="flex items-start">
-                                        <div className="flex-shrink-0 mt-1">
-                                            <div className="p-2 rounded-md bg-gray-100 text-gray-600">
-                                                {event.icon}
-                                            </div>
-                                        </div>
-                                        <div className="ml-3">
-                                            <p className="text-sm font-medium text-gray-900">{event.title}</p>
-                                            <div className="flex items-center mt-1">
-                                                <Clock className="w-3 h-3 text-gray-500 mr-1" />
-                                                <p className="text-xs text-gray-500">{event.date}</p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Recent Activity */}
-                    <div className="bg-white overflow-hidden shadow-card rounded-lg">
-                        <div className="p-6">
-                            <div className="flex items-center justify-between mb-4">
-                                <h2 className="text-lg font-semibold text-gray-900">Recent Activity</h2>
-                                <Link href="/dashboard/activity" className="text-sm text-primary-600 hover:text-primary-700 flex items-center">
-                                    View all <ArrowRight className="ml-1 w-4 h-4" />
-                                </Link>
-                            </div>
-                            <div className="space-y-4">
-                                {recentActivity.map((activity, index) => (
-                                    <div key={index} className="flex items-start">
-                                        <div className="flex-shrink-0 mt-1">
-                                            {activity.icon}
-                                        </div>
-                                        <div className="ml-3">
-                                            <p className="text-sm font-medium text-gray-900">{activity.title}</p>
-                                            <p className="text-xs text-gray-500 mt-1">{activity.time}</p>
-                                        </div>
-                                    </div>
-                                ))}
+                                <h3 className="text-sm font-medium text-gray-900 mb-2">Achievements Coming Soon</h3>
+                                {isTeacher ? (
+                                    <p className="text-xs text-gray-500 max-w-md mx-auto">
+                                        Track your teaching impact and student progress. Our upcoming achievement system will help you measure effectiveness and showcase your teaching excellence.
+                                    </p>
+                                ) : (
+                                    <p className="text-xs text-gray-500 max-w-md mx-auto">
+                                        Track your learning milestones, earn certificates, and showcase your progress. We're building a comprehensive achievement system for your educational journey.
+                                    </p>
+                                )}
                             </div>
                         </div>
                     </div>

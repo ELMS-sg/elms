@@ -75,15 +75,6 @@ export default async function AssignmentDetailPage({
                     <div className="flex items-center">
                         <Clock className="w-4 h-4 mr-1" />
                         Due {dueDateDisplay}
-                        {isPastDue && !assignment.submission?.grade && (
-                            <div className="bg-red-50 text-red-700 p-4 rounded-lg flex items-start mb-6">
-                                <AlertCircle className="w-5 h-5 mr-2 flex-shrink-0 mt-0.5" />
-                                <div>
-                                    <p className="font-medium">Overdue Assignment</p>
-                                    <p className="text-sm">This assignment is past due. Submit as soon as possible.</p>
-                                </div>
-                            </div>
-                        )}
                     </div>
                     <div className="flex items-center">
                         <BookOpen className="w-4 h-4 mr-1" />
@@ -93,6 +84,16 @@ export default async function AssignmentDetailPage({
                         <span className="font-medium text-gray-700">Points: {assignment.points}</span>
                     </div>
                 </div>
+
+                {isPastDue && !assignment.submission?.grade && (
+                    <div className="bg-red-50 text-red-700 p-4 rounded-lg flex items-start mt-4">
+                        <AlertCircle className="w-5 h-5 mr-2 flex-shrink-0 mt-0.5" />
+                        <div>
+                            <p className="font-medium">Overdue Assignment</p>
+                            <p className="text-sm">This assignment is past due. Submit as soon as possible.</p>
+                        </div>
+                    </div>
+                )}
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -110,29 +111,54 @@ export default async function AssignmentDetailPage({
                     {assignment.files && assignment.files.length > 0 && (
                         <div className="bg-white rounded-lg shadow-card p-6">
                             <h2 className="text-lg font-semibold text-gray-900 mb-4">Assignment Files</h2>
-                            <div className="space-y-2">
-                                {assignment.files.map((file) => (
-                                    <div
-                                        key={file.id}
-                                        className="flex items-center justify-between bg-gray-50 p-3 rounded-lg"
-                                    >
-                                        <div className="flex items-center">
-                                            <File className="w-4 h-4 text-gray-400 mr-2" />
-                                            <div>
-                                                <p className="text-sm font-medium text-gray-700">{file.file_name}</p>
-                                                <p className="text-xs text-gray-500">{Math.round(file.file_size / 1024)} KB</p>
-                                            </div>
+                            <div className="space-y-4">
+                                {assignment.files.map((file) => {
+                                    const isVideo = file.file_name.match(/\.(mp4|mov|avi|wmv|flv|mkv|webm)$/i);
+                                    return (
+                                        <div key={file.id} className="rounded-lg">
+                                            {isVideo ? (
+                                                <div className="space-y-2">
+                                                    <div className="flex items-center justify-between">
+                                                        <p className="text-sm font-medium text-gray-700">{file.file_name}</p>
+                                                        <a
+                                                            href={file.file_url}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="text-primary-600 hover:text-primary-700"
+                                                        >
+                                                            <Download className="w-4 h-4" />
+                                                        </a>
+                                                    </div>
+                                                    <div className="rounded-lg overflow-hidden border border-gray-200">
+                                                        <video
+                                                            controls
+                                                            className="w-full h-auto"
+                                                            src={file.file_url}
+                                                        />
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <div className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
+                                                    <div className="flex items-center">
+                                                        <File className="w-4 h-4 text-gray-400 mr-2" />
+                                                        <div>
+                                                            <p className="text-sm font-medium text-gray-700">{file.file_name}</p>
+                                                            <p className="text-xs text-gray-500">{Math.round(file.file_size / 1024)} KB</p>
+                                                        </div>
+                                                    </div>
+                                                    <a
+                                                        href={file.file_url}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="text-primary-600 hover:text-primary-700"
+                                                    >
+                                                        <Download className="w-4 h-4" />
+                                                    </a>
+                                                </div>
+                                            )}
                                         </div>
-                                        <a
-                                            href={file.file_url}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="text-primary-600 hover:text-primary-700"
-                                        >
-                                            <Download className="w-4 h-4" />
-                                        </a>
-                                    </div>
-                                ))}
+                                    );
+                                })}
                             </div>
                         </div>
                     )}
@@ -196,29 +222,54 @@ export default async function AssignmentDetailPage({
                                     {assignment.submission.files && assignment.submission.files.length > 0 && (
                                         <div className="mb-6">
                                             <h3 className="text-sm font-medium text-gray-700 mb-2">Your Submission:</h3>
-                                            <div className="space-y-2">
-                                                {assignment.submission.files.map((file) => (
-                                                    <div
-                                                        key={file.id}
-                                                        className="flex items-center justify-between bg-gray-50 p-3 rounded-lg"
-                                                    >
-                                                        <div className="flex items-center">
-                                                            <File className="w-4 h-4 text-gray-400 mr-2" />
-                                                            <div>
-                                                                <p className="text-sm font-medium text-gray-700">{file.file_name}</p>
-                                                                <p className="text-xs text-gray-500">{Math.round(file.file_size / 1024)} KB</p>
-                                                            </div>
+                                            <div className="space-y-4">
+                                                {assignment.submission.files.map((file) => {
+                                                    const isVideo = file.file_name.match(/\.(mp4|mov|avi|wmv|flv|mkv|webm)$/i);
+                                                    return (
+                                                        <div key={file.id} className="rounded-lg">
+                                                            {isVideo ? (
+                                                                <div className="space-y-2">
+                                                                    <div className="flex items-center justify-between">
+                                                                        <p className="text-sm font-medium text-gray-700">{file.file_name}</p>
+                                                                        <a
+                                                                            href={file.file_url}
+                                                                            target="_blank"
+                                                                            rel="noopener noreferrer"
+                                                                            className="text-primary-600 hover:text-primary-700"
+                                                                        >
+                                                                            <Download className="w-4 h-4" />
+                                                                        </a>
+                                                                    </div>
+                                                                    <div className="rounded-lg overflow-hidden border border-gray-200">
+                                                                        <video
+                                                                            controls
+                                                                            className="w-full h-auto"
+                                                                            src={file.file_url}
+                                                                        />
+                                                                    </div>
+                                                                </div>
+                                                            ) : (
+                                                                <div className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
+                                                                    <div className="flex items-center">
+                                                                        <File className="w-4 h-4 text-gray-400 mr-2" />
+                                                                        <div>
+                                                                            <p className="text-sm font-medium text-gray-700">{file.file_name}</p>
+                                                                            <p className="text-xs text-gray-500">{Math.round(file.file_size / 1024)} KB</p>
+                                                                        </div>
+                                                                    </div>
+                                                                    <a
+                                                                        href={file.file_url}
+                                                                        target="_blank"
+                                                                        rel="noopener noreferrer"
+                                                                        className="text-primary-600 hover:text-primary-700"
+                                                                    >
+                                                                        <Download className="w-4 h-4" />
+                                                                    </a>
+                                                                </div>
+                                                            )}
                                                         </div>
-                                                        <a
-                                                            href={file.file_url}
-                                                            target="_blank"
-                                                            rel="noopener noreferrer"
-                                                            className="text-primary-600 hover:text-primary-700"
-                                                        >
-                                                            <Download className="w-4 h-4" />
-                                                        </a>
-                                                    </div>
-                                                ))}
+                                                    );
+                                                })}
                                             </div>
                                         </div>
                                     )}
@@ -249,10 +300,10 @@ export default async function AssignmentDetailPage({
                                         <div className="mt-4">
                                             <Link
                                                 href={`/dashboard/assignments/${assignment.id}/submit`}
-                                                className="btn btn-primary"
+                                                className="btn btn-primary flex items-center justify-center w-[300px]"
                                             >
                                                 <Upload className="w-4 h-4 mr-2" />
-                                                Update Submission
+                                                <span>Update Submission</span>
                                             </Link>
                                         </div>
                                     )}
