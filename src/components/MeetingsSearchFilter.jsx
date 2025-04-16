@@ -64,8 +64,8 @@ export function MeetingsSearchFilter({ upcomingMeetings, isTeacher }) {
                     <button
                         key={index}
                         className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${category.name === activeCategory
-                                ? "bg-primary-100 text-primary-700"
-                                : "bg-white text-gray-600 hover:bg-gray-50"
+                            ? "bg-primary-100 text-primary-700"
+                            : "bg-white text-gray-600 hover:bg-gray-50"
                             }`}
                         onClick={() => handleCategoryClick(category.name)}
                     >

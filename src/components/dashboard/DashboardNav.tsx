@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation"
 import ClientOnly from "@/components/ClientOnly"
 import { serverSignOut } from "@/lib/actions"
 import { Avatar } from "@/components/Avatar"
+import { useEffect, useState } from "react"
 
 import {
     Home,
@@ -17,9 +18,11 @@ import {
     X,
     User,
     ClipboardList,
-    Settings
+    Settings,
+    Check,
+    CheckCheck
 } from "lucide-react"
-import { useState } from "react"
+import { getUserNotifications, markAllNotificationsAsRead, markNotificationAsRead, type Notification } from "@/lib/notification-actions"
 
 interface DashboardNavProps {
     user: {
@@ -37,7 +40,63 @@ export function DashboardNav({ user }: DashboardNavProps) {
     const displayName = user?.name || user?.email?.split('@')[0] || 'User'
     const isAdmin = user?.role === 'ADMIN'
     const isTeacher = user?.role === 'TEACHER'
-    console.log(user)
+
+    // Notification state
+    const [notificationsOpen, setNotificationsOpen] = useState(false)
+    const [notifications, setNotifications] = useState<Notification[]>([])
+    const [loading, setLoading] = useState(true)
+
+    // Fetch notifications
+    useEffect(() => {
+        async function fetchNotifications() {
+            setLoading(true)
+            try {
+                const data = await getUserNotifications()
+                setNotifications(data)
+            } catch (error) {
+                console.error('Error fetching notifications:', error)
+            } finally {
+                setLoading(false)
+            }
+        }
+
+        fetchNotifications()
+
+        // Refresh notifications every minute
+        const interval = setInterval(fetchNotifications, 60000)
+        return () => clearInterval(interval)
+    }, [])
+
+    // Calculate unread count
+    const unreadCount = notifications.filter(n => !n.is_read).length
+
+    // Handle marking notification as read
+    const handleMarkAsRead = async (notificationId: string, event: React.MouseEvent) => {
+        event.stopPropagation()
+        try {
+            await markNotificationAsRead(notificationId)
+            // Update local state
+            setNotifications(prev =>
+                prev.map(n => n.id === notificationId ? { ...n, is_read: true } : n)
+            )
+        } catch (error) {
+            console.error('Error marking notification as read:', error)
+        }
+    }
+
+    // Handle marking all as read
+    const handleMarkAllAsRead = async (event: React.MouseEvent) => {
+        event.stopPropagation()
+        try {
+            await markAllNotificationsAsRead()
+            // Update local state
+            setNotifications(prev =>
+                prev.map(n => ({ ...n, is_read: true }))
+            )
+        } catch (error) {
+            console.error('Error marking all notifications as read:', error)
+        }
+    }
 
     const navigation = [
         {
@@ -109,10 +168,79 @@ export function DashboardNav({ user }: DashboardNavProps) {
                     <div className="flex items-center">
                         <ClientOnly>
                             <div className="flex-shrink-0 flex items-center">
-                                <button className="p-2 rounded-full text-gray-500 hover:text-primary-600 hover:bg-gray-100 mr-2 relative">
-                                    <Bell className="w-5 h-5" />
-                                    <span className="absolute top-1 right-1 w-2 h-2 bg-accent-red rounded-full"></span>
-                                </button>
+                                <div className="relative">
+                                    <button
+                                        className="p-2 rounded-full text-gray-500 hover:text-primary-600 hover:bg-gray-100 mr-2 relative"
+                                        onClick={() => setNotificationsOpen(!notificationsOpen)}
+                                    >
+                                        <Bell className="w-5 h-5" />
+                                        {unreadCount > 0 && (
+                                            <span className="absolute top-1 right-1 w-2 h-2 bg-accent-red rounded-full"></span>
+                                        )}
+                                    </button>
+
+                                    {/* Notifications Panel */}
+                                    {notificationsOpen && (
+                                        <div className="absolute right-0 mt-2 w-80 bg-white rounded-md shadow-lg py-1 z-10 max-h-96 overflow-y-auto border border-gray-200">
+                                            <div className="flex justify-between items-center px-4 py-2 border-b border-gray-200">
+                                                <h3 className="text-sm font-semibold text-gray-700">Notifications</h3>
+                                                {unreadCount > 0 && (
+                                                    <button
+                                                        onClick={handleMarkAllAsRead}
+                                                        className="text-xs text-primary-600 hover:text-primary-800 flex items-center"
+                                                    >
+                                                        <CheckCheck className="w-3 h-3 mr-1" />
+                                                        Mark all as read
+                                                    </button>
+                                                )}
+                                            </div>
+
+                                            {loading ? (
+                                                <div className="px-4 py-3 text-sm text-gray-500">
+                                                    Loading notifications...
+                                                </div>
+                                            ) : notifications.length === 0 ? (
+                                                <div className="px-4 py-3 text-sm text-gray-500">
+                                                    No notifications
+                                                </div>
+                                            ) : (
+                                                <div>
+                                                    {notifications.map((notification) => (
+                                                        <div
+                                                            key={notification.id}
+                                                            className={`px-4 py-3 hover:bg-gray-50 border-b border-gray-100 ${!notification.is_read ? 'bg-blue-50' : ''}`}
+                                                        >
+                                                            <div className="flex justify-between">
+                                                                <h4 className="text-sm font-medium text-gray-900">{notification.title}</h4>
+                                                                {!notification.is_read && (
+                                                                    <button
+                                                                        onClick={(e) => handleMarkAsRead(notification.id, e)}
+                                                                        className="text-primary-600 hover:text-primary-800"
+                                                                    >
+                                                                        <Check className="w-4 h-4" />
+                                                                    </button>
+                                                                )}
+                                                            </div>
+                                                            <p className="text-xs text-gray-600 mt-1">{notification.message}</p>
+                                                            <p className="text-xs text-gray-400 mt-1">
+                                                                {new Date(notification.created_at).toLocaleString()}
+                                                            </p>
+                                                            {notification.related_id && notification.type === 'ASSIGNMENT' && (
+                                                                <Link
+                                                                    href={`/dashboard/assignments/${notification.related_id}`}
+                                                                    className="text-xs text-primary-600 hover:text-primary-800 mt-2 block"
+                                                                >
+                                                                    View assignment
+                                                                </Link>
+                                                            )}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+
                                 <div className="hidden md:flex items-center">
                                     <Avatar
                                         url={user.avatar_url}

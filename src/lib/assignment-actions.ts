@@ -10,6 +10,7 @@ import { revalidatePath } from 'next/cache'
 import { createSampleClassData } from './class-actions'
 import { getStudentClasses } from './class-actions'
 import { getSupabase as getSupabaseFromClient } from './supabase/client'
+import { createNotificationsForUsers } from './notification-actions'
 
 
 const getSupabase = getSupabaseFromClient
@@ -773,8 +774,36 @@ export async function createAssignment(formData: AssignmentFormData) {
             throw new Error('Failed to create assignment: No data returned');
         }
 
-        // Don't handle file uploads in the server action
-        // Instead, we'll create the assignment first, then handle files separately
+        // Get the class details to include in notification
+        const { data: classData, error: classError } = await supabase
+            .from('classes')
+            .select('name')
+            .eq('id', formData.class_id)
+            .single();
+
+        const className = classData?.name || 'your class';
+
+        // Now get all students enrolled in this class for notifications
+        const { data: enrollments, error: enrollmentsError } = await supabase
+            .from('class_enrollments')
+            .select('student_id')
+            .eq('class_id', formData.class_id);
+
+        if (!enrollmentsError && enrollments && enrollments.length > 0) {
+            // Get all student IDs from enrollments
+            const studentIds = enrollments.map(enrollment => enrollment.student_id);
+
+            // Create notifications for all enrolled students
+            await createNotificationsForUsers({
+                userIds: studentIds,
+                title: 'New Assignment',
+                message: `A new assignment "${formData.title}" has been posted for ${className}. Due on ${new Date(formData.due_date).toLocaleDateString()}.`,
+                type: 'ASSIGNMENT',
+                relatedId: assignment.id
+            });
+
+            console.log(`Sent notifications to ${studentIds.length} students about the new assignment`);
+        }
 
         console.log('Assignment created successfully');
         revalidatePath('/dashboard/assignments');
