@@ -20,7 +20,8 @@ import {
     ClipboardList,
     Settings,
     Check,
-    CheckCheck
+    CheckCheck,
+    HelpCircle as HelpCircleIcon
 } from "lucide-react"
 import { getUserNotifications, markAllNotificationsAsRead, markNotificationAsRead, type Notification } from "@/lib/notification-actions"
 
@@ -129,6 +130,12 @@ export function DashboardNav({ user }: DashboardNavProps) {
             current: pathname === "/dashboard/profile",
             icon: <User className="w-5 h-5" />
         },
+        {
+            name: "Help",
+            href: "/dashboard/help",
+            current: pathname === "/dashboard/help" || pathname.startsWith("/dashboard/help/"),
+            icon: <HelpCircleIcon className="w-5 h-5" />
+        }
     ]
 
     // Add admin link if user is admin

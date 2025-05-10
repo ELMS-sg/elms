@@ -160,7 +160,7 @@ export default function AdminUsersPage() {
                         <p className="text-gray-500">Manage all your system users in one place</p>
                     </div>
                     <Link href="/admin/users/create" className="mt-4 md:mt-0">
-                        <Button className="bg-primary text-white hover:bg-primary/90 transition-colors">
+                        <Button className="text-white bg-blue-400 transition-colors">
                             <Plus className="mr-2 h-4 w-4" />
                             Add New User
                         </Button>

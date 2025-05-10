@@ -172,7 +172,7 @@ export default function CreateUserPage() {
                                     name="name"
                                     value={formData.name}
                                     onChange={handleChange}
-                                    className={`pl-10 ${errors.name ? 'border-red-500 focus:ring-red-500 focus:border-red-500' : ''}`}
+                                    className={`bg-white pl-10 ${errors.name ? 'border-red-500 focus:ring-red-500 focus:border-red-500' : ''}`}
                                     placeholder="Enter full name"
                                 />
                             </div>
@@ -195,7 +195,7 @@ export default function CreateUserPage() {
                                     type="email"
                                     value={formData.email}
                                     onChange={handleChange}
-                                    className={`pl-10 ${errors.email ? 'border-red-500 focus:ring-red-500 focus:border-red-500' : ''}`}
+                                    className={`bg-white pl-10 ${errors.email ? 'border-red-500 focus:ring-red-500 focus:border-red-500' : ''}`}
                                     placeholder="Enter email address"
                                 />
                             </div>
@@ -218,7 +218,7 @@ export default function CreateUserPage() {
                                     type="password"
                                     value={formData.password}
                                     onChange={handleChange}
-                                    className={`pl-10 ${errors.password ? 'border-red-500 focus:ring-red-500 focus:border-red-500' : ''}`}
+                                    className={`bg-white pl-10 ${errors.password ? 'border-red-500 focus:ring-red-500 focus:border-red-500' : ''}`}
                                     placeholder="Create a password"
                                 />
                             </div>
