@@ -8,7 +8,6 @@ export async function GET(
     { params }: { params: { id: string } }
 ) {
     try {
-        // Check authentication - only admin can access this endpoint
         const user = await requireServerAuth();
         if (user.role !== 'ADMIN') {
             return NextResponse.json(
