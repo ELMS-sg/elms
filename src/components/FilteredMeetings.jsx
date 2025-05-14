@@ -148,6 +148,16 @@ export function FilteredMeetings({ upcomingMeetings, pastMeetings, isTeacher }) 
         setShowAllUpcoming(false);
     }, [searchParams, upcomingMeetings, pastMeetings]);
 
+    // Add at the beginning of the component function
+    useEffect(() => {
+        console.log("Meetings data:", {
+            upcomingMeetings,
+            isTeacher,
+            oneOnOneMeetings: upcomingMeetings.filter(m => m.type === "ONE_ON_ONE"),
+            hasStudentInfo: upcomingMeetings.some(m => m.studentName && m.type === "ONE_ON_ONE")
+        });
+    }, [upcomingMeetings, isTeacher]);
+
     // Determine which meetings to display based on showAllUpcoming state
     const displayedUpcomingMeetings = showAllUpcoming
         ? filteredUpcoming
@@ -176,7 +186,10 @@ export function FilteredMeetings({ upcomingMeetings, pastMeetings, isTeacher }) 
                                                     ? "bg-primary-50 text-primary-600"
                                                     : "bg-yellow-50 text-yellow-600"
                                                     }`}>
-                                                    <Users className="h-5 w-5" />
+                                                    {meeting.type === "ONE_ON_ONE" ?
+                                                        <Video className="h-5 w-5" /> :
+                                                        <Users className="h-5 w-5" />
+                                                    }
                                                 </div>
                                                 <span className="ml-2 text-sm font-medium text-gray-500">
                                                     {meeting.type === "ONE_ON_ONE" ? "One-on-One" : "Group Session"}
@@ -198,17 +211,32 @@ export function FilteredMeetings({ upcomingMeetings, pastMeetings, isTeacher }) 
                                         )}
 
                                         <div className="mt-auto">
-                                            <div className="flex items-center mb-3">
-                                                <Avatar
-                                                    url={meeting.teacher.avatar_url}
-                                                    name={meeting.teacher.name}
-                                                    size="sm"
-                                                />
-                                                <div className="ml-3">
-                                                    <p className="text-sm font-medium text-gray-900">{meeting.teacher.name}</p>
-                                                    <p className="text-xs text-gray-500">{meeting.teacher.title}</p>
+                                            {/* Show student info for teachers in one-on-one meetings, otherwise show teacher info */}
+                                            {isTeacher && meeting.type === "ONE_ON_ONE" && meeting.studentName ? (
+                                                <div className="flex items-center mb-3">
+                                                    <Avatar
+                                                        url={meeting.studentAvatar}
+                                                        name={meeting.studentName}
+                                                        size="sm"
+                                                    />
+                                                    <div className="ml-3">
+                                                        <p className="text-sm font-medium text-gray-900">{meeting.studentName}</p>
+                                                        <p className="text-xs text-gray-500">Student</p>
+                                                    </div>
                                                 </div>
-                                            </div>
+                                            ) : (
+                                                <div className="flex items-center mb-3">
+                                                    <Avatar
+                                                        url={meeting.teacher.avatar_url}
+                                                        name={meeting.teacher.name}
+                                                        size="sm"
+                                                    />
+                                                    <div className="ml-3">
+                                                        <p className="text-sm font-medium text-gray-900">{meeting.teacher.name}</p>
+                                                        <p className="text-xs text-gray-500">{meeting.teacher.title}</p>
+                                                    </div>
+                                                </div>
+                                            )}
 
                                             <div className="flex items-center text-sm text-gray-500 mb-3">
                                                 <Clock className="h-4 w-4 mr-2" />
@@ -220,13 +248,21 @@ export function FilteredMeetings({ upcomingMeetings, pastMeetings, isTeacher }) 
 
                                             <div className="flex items-center text-sm text-gray-500 mb-3">
                                                 <Video className="h-4 w-4 mr-2 text-primary-600" />
-                                                <span>Zoom Meeting</span>
+                                                <span>{meeting.meetingLink?.includes('meet.google.com') ? 'Google Meet' : 'Zoom Meeting'}</span>
                                             </div>
 
-                                            {meeting.type === "ONE_ON_ONE" && meeting.studentName && (
+                                            {/* Conditionally show participant info based on user role and meeting type */}
+                                            {(!isTeacher && meeting.type === "ONE_ON_ONE") && (
                                                 <div className="flex items-center text-sm text-gray-500 mb-3">
                                                     <Users className="h-4 w-4 mr-2" />
-                                                    <span>With: {meeting.studentName}</span>
+                                                    <span>With: {meeting.teacher.name}</span>
+                                                </div>
+                                            )}
+
+                                            {(isTeacher && meeting.type === "ONE_ON_ONE" && !meeting.studentName) && (
+                                                <div className="flex items-center text-sm text-gray-500 mb-3">
+                                                    <Users className="h-4 w-4 mr-2" />
+                                                    <span>Student not specified</span>
                                                 </div>
                                             )}
 
@@ -269,32 +305,32 @@ export function FilteredMeetings({ upcomingMeetings, pastMeetings, isTeacher }) 
                                 </div>
                             ))}
 
-                            {/* View More Button */}
+                            {/* Show All / Show Less buttons */}
                             {filteredUpcoming.length > initialMeetingsCount && (
-                                <div className="col-span-full flex justify-center my-6">
+                                <div className="lg:col-span-3 text-center mt-4">
                                     <button
                                         onClick={() => setShowAllUpcoming(!showAllUpcoming)}
-                                        className="btn btn-outline flex items-center gap-2"
+                                        className="inline-flex items-center text-sm font-medium text-primary-600 hover:text-primary-700"
                                     >
-                                        {showAllUpcoming ? 'Show Less' : 'View More'}
-                                        <ChevronDown className={`w-4 h-4 transition-transform ${showAllUpcoming ? 'rotate-180' : ''}`} />
+                                        {showAllUpcoming ? 'Show Less' : `Show All (${filteredUpcoming.length})`}
+                                        <ChevronDown className={`ml-1 h-4 w-4 transform ${showAllUpcoming ? 'rotate-180' : ''}`} />
                                     </button>
                                 </div>
                             )}
                         </>
                     ) : (
-                        <div className="col-span-3 py-12 text-center">
-                            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gray-100 text-gray-400 mb-4">
-                                <Calendar className="h-8 w-8" />
+                        <div className="lg:col-span-3 bg-white rounded-lg shadow-sm p-8 text-center">
+                            <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-gray-100 text-gray-400 mb-4">
+                                <Calendar className="h-6 w-6" />
                             </div>
-                            <h3 className="text-lg font-semibold text-gray-900 mb-2">No Upcoming Meetings</h3>
-                            <p className="text-gray-600 max-w-md mx-auto mb-6">
-                                {isTeacher
-                                    ? "You don't have any scheduled meetings. Create a new Zoom meeting to get started."
-                                    : "You don't have any upcoming meetings scheduled."}
+                            <h3 className="text-lg font-medium text-gray-900 mb-2">No Upcoming Meetings</h3>
+                            <p className="text-gray-500 max-w-md mx-auto mb-6">
+                                You don't have any upcoming meetings scheduled.
+                                {isTeacher && " Create a new meeting to get started."}
                             </p>
                             {isTeacher && (
-                                <Link href="/dashboard/meetings/create" className="btn btn-primary">
+                                <Link href="/dashboard/meetings/create" className="btn btn-primary inline-flex items-center">
+                                    <Plus className="mr-2 h-4 w-4" />
                                     Create Meeting
                                 </Link>
                             )}
@@ -323,7 +359,10 @@ export function FilteredMeetings({ upcomingMeetings, pastMeetings, isTeacher }) 
                                                 ? "bg-primary-50 text-primary-600"
                                                 : "bg-yellow-50 text-yellow-600"
                                                 }`}>
-                                                <Users className="h-5 w-5" />
+                                                {meeting.type === "ONE_ON_ONE" ?
+                                                    <Video className="h-5 w-5" /> :
+                                                    <Users className="h-5 w-5" />
+                                                }
                                             </div>
                                             <span className="ml-2 text-sm font-medium text-gray-500">
                                                 {meeting.type === "ONE_ON_ONE" ? "One-on-One" : "Group Session"}
@@ -348,17 +387,32 @@ export function FilteredMeetings({ upcomingMeetings, pastMeetings, isTeacher }) 
                                     )}
 
                                     <div className="mt-auto">
-                                        <div className="flex items-center mb-3">
-                                            <Avatar
-                                                url={meeting.teacher.avatar_url}
-                                                name={meeting.teacher.name}
-                                                size="sm"
-                                            />
-                                            <div className="ml-3">
-                                                <p className="text-sm font-medium text-gray-900">{meeting.teacher.name}</p>
-                                                <p className="text-xs text-gray-500">{meeting.teacher.title}</p>
+                                        {/* Show student info for teachers in one-on-one meetings */}
+                                        {isTeacher && meeting.type === "ONE_ON_ONE" && meeting.studentName ? (
+                                            <div className="flex items-center mb-3">
+                                                <Avatar
+                                                    url={meeting.studentAvatar}
+                                                    name={meeting.studentName}
+                                                    size="sm"
+                                                />
+                                                <div className="ml-3">
+                                                    <p className="text-sm font-medium text-gray-900">{meeting.studentName}</p>
+                                                    <p className="text-xs text-gray-500">Student</p>
+                                                </div>
                                             </div>
-                                        </div>
+                                        ) : (
+                                            <div className="flex items-center mb-3">
+                                                <Avatar
+                                                    url={meeting.teacher.avatar_url}
+                                                    name={meeting.teacher.name}
+                                                    size="sm"
+                                                />
+                                                <div className="ml-3">
+                                                    <p className="text-sm font-medium text-gray-900">{meeting.teacher.name}</p>
+                                                    <p className="text-xs text-gray-500">{meeting.teacher.title}</p>
+                                                </div>
+                                            </div>
+                                        )}
 
                                         <div className="flex items-center text-sm text-gray-500 mb-3">
                                             <Clock className="h-4 w-4 mr-2" />
@@ -368,33 +422,26 @@ export function FilteredMeetings({ upcomingMeetings, pastMeetings, isTeacher }) 
                                             </span>
                                         </div>
 
-                                        {meeting.type === "ONE_ON_ONE" && meeting.studentName && (
+                                        {/* Conditionally show participant info based on user role and meeting type */}
+                                        {(!isTeacher && meeting.type === "ONE_ON_ONE") && (
                                             <div className="flex items-center text-sm text-gray-500 mb-3">
                                                 <Users className="h-4 w-4 mr-2" />
-                                                <span>With: {meeting.studentName}</span>
+                                                <span>With: {meeting.teacher.name}</span>
                                             </div>
                                         )}
-
-                                        <div className="flex items-center text-sm text-gray-500 mb-0">
-                                            <BookOpen className="h-4 w-4 mr-2" />
-                                            <span>Class: {meeting.relatedClass.name}</span>
-                                        </div>
                                     </div>
-                                </div>
-
-                                <div className="bg-gray-50 p-4 mt-auto">
-                                    {isTeacher && (
-                                        <button className="w-full btn btn-outline btn-sm flex items-center justify-center">
-                                            <Plus className="w-4 h-4 mr-2" />
-                                            Schedule Similar Meeting
-                                        </button>
-                                    )}
                                 </div>
                             </div>
                         ))
                     ) : (
-                        <div className="col-span-3 py-8 text-center">
-                            <p className="text-gray-600">No past meetings found.</p>
+                        <div className="lg:col-span-3 bg-white rounded-lg shadow-sm p-8 text-center">
+                            <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-gray-100 text-gray-400 mb-4">
+                                <Calendar className="h-6 w-6" />
+                            </div>
+                            <h3 className="text-lg font-medium text-gray-900 mb-2">No Past Meetings</h3>
+                            <p className="text-gray-500 max-w-md mx-auto">
+                                You don't have any past meetings yet.
+                            </p>
                         </div>
                     )}
                 </div>

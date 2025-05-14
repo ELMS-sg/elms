@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { requireServerAuth } from "@/lib/actions"
 import { getClassById } from "@/lib/class-actions"
+import { getSupabase } from "@/lib/supabase/client"
 
 export async function GET(request: NextRequest) {
     try {
@@ -45,12 +46,38 @@ export async function GET(request: NextRequest) {
         console.log(`API: Found class: ${classData.name} (${classId})`)
         console.log(`API: Found ${classData.students.length} students in class ${classId}`)
 
+        // Get additional student details including avatar_url
+        const supabase = await getSupabase()
+        const studentIds = classData.students.map(student => student.id)
+
+        let enhancedStudents = [...classData.students]
+
+        if (studentIds.length > 0) {
+            const { data: studentDetails } = await supabase
+                .from('users')
+                .select('id, avatar_url')
+                .in('id', studentIds)
+
+            if (studentDetails && studentDetails.length > 0) {
+                // Create a map of student IDs to avatar URLs
+                const avatarMap = studentDetails.reduce((map, student) => {
+                    map[student.id] = student.avatar_url
+                    return map
+                }, {})
+
+                // Enhance student objects with avatar URLs
+                enhancedStudents = classData.students.map(student => ({
+                    ...student,
+                    avatar: avatarMap[student.id] || null
+                }))
+            }
+        }
+
         // Format the students data to match the expected format
-        const formattedStudents = classData.students.map(student => ({
+        const formattedStudents = enhancedStudents.map(student => ({
             id: student.id,
             name: student.name,
-            // Add default avatar since it's null in the original data
-            avatar: '/images/default-avatar.jpg'
+            avatar: student.avatar || '/images/default-avatar.jpg'
         }))
 
         console.log(`API: Returning ${formattedStudents.length} students for class ${classId}`)

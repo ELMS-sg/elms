@@ -2,15 +2,19 @@
 
 import { useStudentsByClass } from '@/hooks/useStudents';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { User } from 'lucide-react';
 
 interface StudentsListProps {
     classId: string;
     onSelectStudent?: (studentId: string) => void;
+    selectedStudentId?: string;
 }
 
-export function StudentsList({ classId, onSelectStudent }: StudentsListProps) {
+export function StudentsList({ classId, onSelectStudent, selectedStudentId }: StudentsListProps) {
     const { data, isLoading, error, refetch } = useStudentsByClass(classId);
+    // Internal state to track selected student
+    const [internalSelectedId, setInternalSelectedId] = useState<string | undefined>(selectedStudentId);
 
     useEffect(() => {
         if (classId) {
@@ -19,12 +23,24 @@ export function StudentsList({ classId, onSelectStudent }: StudentsListProps) {
         }
     }, [classId, refetch]);
 
+    // Update internal state when prop changes
+    useEffect(() => {
+        setInternalSelectedId(selectedStudentId);
+    }, [selectedStudentId]);
+
     // Log data when it changes
     useEffect(() => {
         if (data) {
             console.log(`StudentsList: Received data for class ${classId}:`, data);
         }
     }, [data, classId]);
+
+    const handleSelectStudent = (studentId: string) => {
+        setInternalSelectedId(studentId);
+        if (onSelectStudent) {
+            onSelectStudent(studentId);
+        }
+    };
 
     if (isLoading) {
         return (
@@ -71,32 +87,55 @@ export function StudentsList({ classId, onSelectStudent }: StudentsListProps) {
     return (
         <div className="space-y-2">
             <h3 className="text-sm font-medium text-gray-700">Students in this class ({data.students.length}):</h3>
-            <ul className="space-y-1">
+            <ul className="space-y-1 max-h-60 overflow-y-auto">
                 {data.students.map((student) => (
                     <li key={student.id} className="flex items-center gap-2">
                         {onSelectStudent ? (
                             <button
-                                onClick={() => onSelectStudent(student.id)}
-                                className="text-left w-full p-2 hover:bg-gray-100 rounded flex items-center gap-2"
+                                onClick={() => handleSelectStudent(student.id)}
+                                className={`text-left w-full p-2 rounded flex items-center gap-2 transition-colors
+                                    ${internalSelectedId === student.id
+                                        ? 'bg-blue-100 border border-blue-500'
+                                        : 'hover:bg-gray-100 border border-transparent'}`}
                             >
-                                {student.avatar && (
-                                    <img
-                                        src={student.avatar}
-                                        alt={student.name}
-                                        className="w-6 h-6 rounded-full"
-                                    />
-                                )}
-                                <span>{student.name}</span>
+                                <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden flex-shrink-0">
+                                    {student.avatar ? (
+                                        <img
+                                            src={student.avatar}
+                                            alt={student.name}
+                                            className="w-full h-full object-cover"
+                                            onError={(e) => {
+                                                // If image fails to load, replace with user icon
+                                                e.currentTarget.style.display = 'none';
+                                                e.currentTarget.parentElement?.classList.add('has-error');
+                                            }}
+                                        />
+                                    ) : (
+                                        <User className="h-4 w-4 text-gray-400" />
+                                    )}
+                                </div>
+                                <span className={internalSelectedId === student.id ? 'font-medium text-blue-700' : ''}>
+                                    {student.name}
+                                </span>
                             </button>
                         ) : (
                             <div className="p-2 flex items-center gap-2">
-                                {student.avatar && (
-                                    <img
-                                        src={student.avatar}
-                                        alt={student.name}
-                                        className="w-6 h-6 rounded-full"
-                                    />
-                                )}
+                                <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden flex-shrink-0">
+                                    {student.avatar ? (
+                                        <img
+                                            src={student.avatar}
+                                            alt={student.name}
+                                            className="w-full h-full object-cover"
+                                            onError={(e) => {
+                                                // If image fails to load, replace with user icon
+                                                e.currentTarget.style.display = 'none';
+                                                e.currentTarget.parentElement?.classList.add('has-error');
+                                            }}
+                                        />
+                                    ) : (
+                                        <User className="h-4 w-4 text-gray-400" />
+                                    )}
+                                </div>
                                 <span>{student.name}</span>
                             </div>
                         )}

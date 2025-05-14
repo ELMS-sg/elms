@@ -2,7 +2,7 @@
 
 import { useState, useEffect, FormEvent } from "react"
 import Link from "next/link"
-import { ArrowLeft } from "lucide-react"
+import { ArrowLeft, Video, ExternalLink, Plus } from "lucide-react"
 import { StudentsList } from "@/components/StudentsList"
 
 export default function CreateMeetingPage() {
@@ -11,19 +11,18 @@ export default function CreateMeetingPage() {
     const [loading, setLoading] = useState(true)
     const [submitting, setSubmitting] = useState(false)
     const [error, setError] = useState("")
-    const [showStudentField, setShowStudentField] = useState(false)
+    const [showMeetingOptions, setShowMeetingOptions] = useState(false)
 
     // Form data
     const [formData, setFormData] = useState({
         classId: "",
-        meetingType: "",
+        meetingType: "ONE_ON_ONE",
         studentId: "",
         title: "",
         date: "",
         time: "",
         duration: "1 hour",
         meetingLink: "",
-        meetingId: "",
         notes: ""
     })
 
@@ -70,30 +69,6 @@ export default function CreateMeetingPage() {
             ...prev,
             [name]: value
         }))
-
-        // Special handling for meeting type
-        if (name === 'meetingType') {
-            setShowStudentField(value === 'ONE_ON_ONE')
-            if (value !== 'ONE_ON_ONE') {
-                setFormData(prev => ({ ...prev, studentId: "" }))
-            }
-        }
-    }
-
-    // Handle radio button changes
-    const handleRadioChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const { name, value } = e.target
-        setFormData(prev => ({
-            ...prev,
-            [name]: value
-        }))
-
-        if (name === 'meetingType') {
-            setShowStudentField(value === 'ONE_ON_ONE')
-            if (value !== 'ONE_ON_ONE') {
-                setFormData(prev => ({ ...prev, studentId: "" }))
-            }
-        }
     }
 
     // Handle student selection
@@ -104,6 +79,20 @@ export default function CreateMeetingPage() {
         }))
     }
 
+    // Handle creating a new meeting on external platforms
+    const createExternalMeeting = (platform: 'zoom' | 'google') => {
+        let url = '';
+        if (platform === 'zoom') {
+            url = 'https://zoom.us/meeting/schedule';
+        } else if (platform === 'google') {
+            url = 'https://meet.google.com/new';
+        }
+
+        // Open the platform in a new tab
+        window.open(url, '_blank');
+        setShowMeetingOptions(false);
+    };
+
     // Handle form submission
     const handleSubmit = async (e: FormEvent) => {
         e.preventDefault()
@@ -112,8 +101,8 @@ export default function CreateMeetingPage() {
 
         try {
             // Validate form data
-            if (formData.meetingType === 'ONE_ON_ONE' && !formData.studentId) {
-                throw new Error('Please select a student for one-on-one meeting')
+            if (!formData.studentId) {
+                throw new Error('Please select a student for the meeting')
             }
 
             console.log("Submitting meeting data:", formData)
@@ -178,7 +167,7 @@ export default function CreateMeetingPage() {
                 <Link href="/dashboard/meetings" className="mr-4">
                     <ArrowLeft className="h-5 w-5 text-gray-500 hover:text-gray-700" />
                 </Link>
-                <h1 className="text-2xl font-bold text-gray-900">Create New Meeting</h1>
+                <h1 className="text-2xl font-bold text-gray-900">Create New One-on-One Meeting</h1>
             </div>
 
             <div className="bg-white rounded-lg shadow-card p-6 mb-6">
@@ -211,40 +200,15 @@ export default function CreateMeetingPage() {
                         </select>
                     </div>
 
-                    {/* Meeting Type */}
-                    <div className="space-y-2">
-                        <label className="block text-sm font-medium text-gray-700">
-                            Meeting Type <span className="text-red-500">*</span>
-                        </label>
-                        <div className="flex space-x-4">
-                            <label className="inline-flex items-center">
-                                <input
-                                    type="radio"
-                                    name="meetingType"
-                                    value="ONE_ON_ONE"
-                                    checked={formData.meetingType === "ONE_ON_ONE"}
-                                    onChange={handleRadioChange}
-                                    className="form-radio text-primary-600"
-                                    required
-                                />
-                                <span className="ml-2">One-on-One</span>
-                            </label>
-                            <label className="inline-flex items-center">
-                                <input
-                                    type="radio"
-                                    name="meetingType"
-                                    value="GROUP"
-                                    checked={formData.meetingType === "GROUP"}
-                                    onChange={handleRadioChange}
-                                    className="form-radio text-primary-600"
-                                />
-                                <span className="ml-2">Group</span>
-                            </label>
-                        </div>
-                    </div>
+                    {/* Hidden field for meeting type */}
+                    <input
+                        type="hidden"
+                        name="meetingType"
+                        value="ONE_ON_ONE"
+                    />
 
-                    {/* Student Selection - Only show for one-on-one meetings */}
-                    {showStudentField && formData.classId && (
+                    {/* Student Selection */}
+                    {formData.classId && (
                         <div className="space-y-2">
                             <label className="block text-sm font-medium text-gray-700">
                                 Student <span className="text-red-500">*</span>
@@ -253,6 +217,7 @@ export default function CreateMeetingPage() {
                                 <StudentsList
                                     classId={formData.classId}
                                     onSelectStudent={handleStudentSelect}
+                                    selectedStudentId={formData.studentId}
                                 />
                             </div>
                             {formData.studentId && (
@@ -331,38 +296,56 @@ export default function CreateMeetingPage() {
                         </select>
                     </div>
 
-                    {/* Zoom Meeting Link */}
+                    {/* Meeting Link */}
                     <div className="space-y-2">
                         <label htmlFor="meetingLink" className="block text-sm font-medium text-gray-700">
-                            Zoom Meeting Link <span className="text-red-500">*</span>
+                            Meeting Link <span className="text-red-500">*</span>
                         </label>
-                        <input
-                            type="url"
-                            id="meetingLink"
-                            name="meetingLink"
-                            value={formData.meetingLink}
-                            onChange={handleInputChange}
-                            required
-                            className="input w-full"
-                            placeholder="https://zoom.us/j/..."
-                        />
-                    </div>
-
-                    {/* Zoom Meeting ID */}
-                    <div className="space-y-2">
-                        <label htmlFor="meetingId" className="block text-sm font-medium text-gray-700">
-                            Zoom Meeting ID
-                        </label>
-                        <input
-                            type="text"
-                            id="meetingId"
-                            name="meetingId"
-                            value={formData.meetingId}
-                            onChange={handleInputChange}
-                            className="input w-full"
-                            placeholder="123 456 7890"
-                        />
-                        <p className="text-xs text-gray-500">Optional: Enter the meeting ID for easier reference</p>
+                        <div className="relative">
+                            <input
+                                type="url"
+                                id="meetingLink"
+                                name="meetingLink"
+                                value={formData.meetingLink}
+                                onChange={handleInputChange}
+                                required
+                                className="input w-full pr-12"
+                                placeholder="https://meet.google.com/... or https://zoom.us/j/..."
+                            />
+                            <button
+                                type="button"
+                                onClick={() => setShowMeetingOptions(!showMeetingOptions)}
+                                className="absolute right-2 top-1/2 transform -translate-y-1/2 text-blue-500 hover:text-blue-700"
+                                title="Create new meeting"
+                            >
+                                <Plus className="h-5 w-5" />
+                            </button>
+                        </div>
+                        {showMeetingOptions && (
+                            <div className="mt-2 flex flex-col sm:flex-row gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => createExternalMeeting('zoom')}
+                                    className="flex items-center justify-center gap-2 text-sm bg-blue-50 text-blue-700 hover:bg-blue-100 px-3 py-2 rounded-md border border-blue-200"
+                                >
+                                    <Video className="h-4 w-4" />
+                                    Create Zoom Meeting
+                                    <ExternalLink className="h-3 w-3" />
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => createExternalMeeting('google')}
+                                    className="flex items-center justify-center gap-2 text-sm bg-green-50 text-green-700 hover:bg-green-100 px-3 py-2 rounded-md border border-green-200"
+                                >
+                                    <Video className="h-4 w-4" />
+                                    Create Google Meet
+                                    <ExternalLink className="h-3 w-3" />
+                                </button>
+                            </div>
+                        )}
+                        <p className="text-xs text-gray-500 mt-1">
+                            Paste your Zoom or Google Meet link here. Need to create a new meeting? Click the + icon.
+                        </p>
                     </div>
 
                     {/* Notes */}

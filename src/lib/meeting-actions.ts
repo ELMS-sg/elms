@@ -89,6 +89,7 @@ export interface Meeting {
     maxParticipants?: number
     notes?: string
     studentName?: string
+    studentAvatar?: string
 }
 
 /**
@@ -118,7 +119,8 @@ export async function getUpcomingMeetings(): Promise<Meeting[]> {
                 max_participants,
                 participants_count,
                 teacher_id(id, name, avatar_url, title),
-                class_id(id, name)
+                class_id(id, name),
+                student_id(id, name, avatar_url)
             `)
             .eq('type', 'ONE_ON_ONE')
             .gte('start_time', now.toISOString())
@@ -193,6 +195,11 @@ export async function getUpcomingMeetings(): Promise<Meeting[]> {
                     id: string;
                     name: string;
                 };
+                const studentData = meeting.student_id as unknown as {
+                    id: string;
+                    name: string;
+                    avatar_url: string;
+                };
 
                 meetings.push({
                     id: meeting.id,
@@ -203,6 +210,8 @@ export async function getUpcomingMeetings(): Promise<Meeting[]> {
                         avatar_url: teacherData?.avatar_url || '/images/default-avatar.jpg',
                         title: teacherData?.title || 'Teacher'
                     },
+                    studentName: studentData?.name || 'Unknown Student',
+                    studentAvatar: studentData?.avatar_url || '/images/default-avatar.jpg',
                     type: "ONE_ON_ONE",
                     date: formatDate(startDate),
                     displayDate: formatDisplayDate(startDate),
