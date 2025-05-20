@@ -2,31 +2,13 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import {
-    User,
-    Mail,
-    Calendar,
-    BookOpen,
-    Users,
-    GraduationCap,
-    ArrowLeft,
-    Pencil,
-    Loader2,
-    AlertCircle
-} from 'lucide-react';
+import { User, Mail, Calendar, BookOpen, GraduationCap, ArrowLeft, Pencil, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ClassCard } from '@/components/classes/ClassCard';
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 type Student = {
     id: string;
@@ -64,34 +46,57 @@ export default function StudentDetailPage({ params }: { params: { id: string } }
     const [classToRemove, setClassToRemove] = useState<Class | null>(null);
     const [isRemoveDialogOpen, setIsRemoveDialogOpen] = useState(false);
 
+    // Extract ID from params safely
+    const studentId = params?.id;
+
     useEffect(() => {
-        const fetchStudentAndClasses = async () => {
+        if (!studentId) {
+            setError("No student ID provided");
+            setLoading(false);
+            return;
+        }
+
+        async function fetchData() {
             setLoading(true);
             setError(null);
-            try {
-                const studentResponse = await fetch(`/api/users/${params.id}`);
-                if (!studentResponse.ok) {
-                    throw new Error('Failed to fetch student details');
-                }
-                const studentData = await studentResponse.json();
-                setStudent(studentData);
 
-                const classesResponse = await fetch(`/api/students/${params.id}/classes`);
-                if (!classesResponse.ok) {
-                    throw new Error('Failed to fetch classes');
+            try {
+                // Fetch student data from our new API
+                const studentResponse = await fetch(`/api/students/profile?id=${studentId}`);
+                if (studentResponse.ok) {
+                    const studentData = await studentResponse.json();
+                    setStudent(studentData);
+                } else {
+                    console.error('Student fetch failed:', studentResponse.statusText);
+                    // Create a basic student object as fallback
+                    setStudent({
+                        id: studentId,
+                        name: `Student ${studentId.substring(0, 8)}`,
+                        email: "Not available",
+                        role: "STUDENT",
+                        created_at: new Date().toISOString(),
+                    });
                 }
-                const enrolledClasses = await classesResponse.json();
-                setClasses(enrolledClasses);
+
+                // Fetch classes data 
+                const classesResponse = await fetch(`/api/students/${studentId}/classes`);
+                if (classesResponse.ok) {
+                    const classesData = await classesResponse.json();
+                    setClasses(classesData);
+                } else {
+                    console.error('Classes fetch failed:', classesResponse.statusText);
+                    setClasses([]);
+                }
             } catch (err) {
                 console.error('Error fetching data:', err);
-                setError(err instanceof Error ? err.message : 'An error occurred');
+                setError('Failed to fetch data');
             } finally {
                 setLoading(false);
             }
-        };
+        }
 
-        fetchStudentAndClasses();
-    }, [params.id]);
+        fetchData();
+    }, [studentId]);
 
     const formatDate = (dateString: string) => {
         const date = new Date(dateString);
@@ -123,8 +128,12 @@ export default function StudentDetailPage({ params }: { params: { id: string } }
             });
 
             if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.error || 'Failed to remove student from class');
+                if (response.status === 401 || response.status === 403) {
+                    router.push('/login');
+                    return;
+                }
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Failed to remove student from class');
             }
 
             setClasses(classes.filter(cls => cls.id !== classToRemove.id));
@@ -148,7 +157,7 @@ export default function StudentDetailPage({ params }: { params: { id: string } }
         );
     }
 
-    if (error) {
+    if (error && !student) {
         return (
             <div className="max-w-7xl mx-auto p-8">
                 <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md mb-6">
@@ -241,14 +250,14 @@ export default function StudentDetailPage({ params }: { params: { id: string } }
                                 <Mail className="h-5 w-5 mr-3 text-gray-500 mt-0.5" />
                                 <div>
                                     <p className="text-sm font-medium text-gray-500">Email</p>
-                                    <p className="text-gray-700">{student.email}</p>
+                                    <p className="text-gray-700">{student.email || "Not available"}</p>
                                 </div>
                             </div>
                             <div className="flex items-start">
                                 <Calendar className="h-5 w-5 mr-3 text-gray-500 mt-0.5" />
                                 <div>
                                     <p className="text-sm font-medium text-gray-500">Joined</p>
-                                    <p className="text-gray-700">{formatDate(student.created_at)}</p>
+                                    <p className="text-gray-700">{student.created_at ? formatDate(student.created_at) : "Not available"}</p>
                                 </div>
                             </div>
                             <div className="flex items-start">

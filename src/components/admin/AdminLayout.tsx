@@ -12,6 +12,7 @@ import {
     User2,
     FileText,
     LogOut,
+    HelpCircle,
 
 } from 'lucide-react';
 
@@ -28,6 +29,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         { name: 'Users', href: '/admin/users', icon: <User2 className="w-5 h-5" /> },
         { name: 'Classes', href: '/admin/classes', icon: <BookOpen className="w-5 h-5" /> },
         { name: 'Assignments', href: '/admin/assignments', icon: <FileText className="w-5 h-5" /> },
+        { name: 'Help & Documentation', href: '/admin/help', icon: <HelpCircle className="w-5 h-5" /> },
         // { name: 'Submissions', href: '/admin/submissions', icon: <CheckSquare className="w-5 h-5" /> },
         // { name: 'Fix Submissions', href: '/admin/fix-submissions', icon: <Wrench className="w-5 h-5" /> },
         // { name: 'Fix Foreign Key', href: '/admin/fix-submissions/foreign-key', icon: <Database className="w-5 h-5" /> },

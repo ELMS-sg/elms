@@ -46,6 +46,7 @@ interface Meeting {
     notes?: string;
     displayDate: string;
     studentName?: string;
+    studentAvatar?: string;
 }
 
 export const metadata: Metadata = {
