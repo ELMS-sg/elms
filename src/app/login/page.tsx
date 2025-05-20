@@ -16,6 +16,7 @@ function LoginContent() {
     const [email, setEmail] = useState('')
     const [password, setPassword] = useState('')
     const [supabase, setSupabase] = useState<SupabaseClient | null>(null)
+    const [isLoggedOut, setIsLoggedOut] = useState(false)
 
     // Initialize Supabase client on the client side only
     useEffect(() => {
@@ -34,7 +35,25 @@ function LoginContent() {
 
                 console.log('Login page session check:', data.session ? 'Session exists' : 'No session')
 
-                if (data.session) {
+                // Check if the user is trying to force logout
+                const forceLogout = searchParams.get('force_logout') === 'true'
+
+                if (forceLogout) {
+                    // Sign out and clear cookies on the client side
+                    await client.auth.signOut({ scope: 'global' })
+
+                    // Clear any localStorage items related to auth
+                    localStorage.removeItem('supabase.auth.token')
+
+                    // Set state to indicate successful logout
+                    setIsLoggedOut(true)
+
+                    // Show success message
+                    setError('You have been successfully logged out.')
+                    return
+                }
+
+                if (data.session && !isLoggedOut) {
                     // Check for redirect loop by looking at the redirect_count parameter
                     const redirectCount = parseInt(searchParams.get('redirect_count') || '0')
 
@@ -72,7 +91,31 @@ function LoginContent() {
 
             setError(errorMessage)
         }
-    }, [router, searchParams])
+    }, [router, searchParams, isLoggedOut])
+
+    // Function to handle force logout
+    const handleForceLogout = async () => {
+        setIsLoading(true)
+        try {
+            if (supabase) {
+                await supabase.auth.signOut({ scope: 'global' })
+
+                // Clear any localStorage items related to auth
+                localStorage.removeItem('supabase.auth.token')
+
+                // Set state to indicate successful logout
+                setIsLoggedOut(true)
+
+                // Show success message
+                setError('You have been successfully logged out.')
+            }
+        } catch (err) {
+            console.error('Error during force logout:', err)
+            setError('Failed to force logout. Please try clearing your cookies manually.')
+        } finally {
+            setIsLoading(false)
+        }
+    }
 
     // Don't render form until supabase is initialized
     if (!supabase) {
@@ -251,6 +294,17 @@ function LoginContent() {
                                 Sign up
                             </Link>
                         </p>
+                    </div>
+
+                    {/* Force Logout Button */}
+                    <div className="mt-4 text-center">
+                        <button
+                            type="button"
+                            onClick={handleForceLogout}
+                            className="text-sm text-gray-500 hover:text-primary-500 transition-colors duration-200"
+                        >
+                            Having trouble logging in? Click here to force logout
+                        </button>
                     </div>
                 </div>
             </div>

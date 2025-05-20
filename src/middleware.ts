@@ -9,13 +9,18 @@ export async function middleware(request: NextRequest) {
 
     const path = request.nextUrl.pathname;
 
-    // Skip middleware for public paths and protected paths (handled by the page itself)
-    if (publicPaths.includes(path) || protectedPaths.includes(path)) {
-        return NextResponse.next();
-    }
-
-    // For other paths, check authentication
+    // Create a response object
     const res = NextResponse.next();
+
+    // Add cache control headers to prevent caching of auth state
+    res.headers.set('Cache-Control', 'no-store, max-age=0, must-revalidate');
+    res.headers.set('Pragma', 'no-cache');
+    res.headers.set('Expires', '0');
+
+    // Skip middleware for public paths
+    if (publicPaths.includes(path)) {
+        return res;
+    }
 
     // Create the supabase middleware client
     const supabase = createMiddlewareClient({
@@ -26,13 +31,25 @@ export async function middleware(request: NextRequest) {
     try {
         const { data: { session } } = await supabase.auth.getSession();
 
-        // If user is not signed in and trying to access a non-public route
+        // If user is not signed in and trying to access a protected route
         if (!session && !publicPaths.includes(path)) {
-            return NextResponse.redirect(new URL('/login', request.url));
+            // Clear any potentially stale cookies before redirecting
+            const loginUrl = new URL('/login', request.url);
+            const redirectRes = NextResponse.redirect(loginUrl);
+
+            // Add cache control headers to the redirect
+            redirectRes.headers.set('Cache-Control', 'no-store, max-age=0, must-revalidate');
+            redirectRes.headers.set('Pragma', 'no-cache');
+            redirectRes.headers.set('Expires', '0');
+
+            return redirectRes;
         }
     } catch (error) {
         console.error('Middleware error:', error);
-        // Continue in case of error
+        // Redirect to login on error to prevent access to protected routes
+        if (!publicPaths.includes(path)) {
+            return NextResponse.redirect(new URL('/login', request.url));
+        }
     }
 
     return res;

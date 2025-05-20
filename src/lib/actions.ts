@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation'
 import { createSampleClassData } from './class-actions'
 import { createSampleAssignmentData } from './assignment-actions'
 import { getSupabase, getSupabaseRouteHandler } from './supabase/client'
+import { cookies } from 'next/headers'
 
 // Server action to get the current session
 export async function getServerSession() {
@@ -161,7 +162,32 @@ export async function requireServerAuth() {
 
 // Server action to sign out
 export async function serverSignOut() {
-    const supabase = await getSupabaseRouteHandler()
-    await supabase.auth.signOut()
-    redirect('/login')
+    try {
+        // Get all cookies
+        const cookieStore = await cookies();
+        const supabase = await getSupabaseRouteHandler();
+
+        // Sign out from Supabase with global scope
+        await supabase.auth.signOut({ scope: 'global' });
+
+        // Get all cookies and delete them one by one
+        const allCookies = cookieStore.getAll();
+        for (const cookie of allCookies) {
+            cookieStore.set(cookie.name, '', {
+                expires: new Date(0),
+                path: '/'
+            });
+        }
+
+        // Add cache control headers to prevent caching
+        const headers = new Headers();
+        headers.set('Cache-Control', 'no-store, max-age=0, must-revalidate');
+
+        // Redirect to login page
+        redirect('/login');
+    } catch (error) {
+        console.error('Error during sign out:', error);
+        // Still redirect to login page even if there's an error
+        redirect('/login');
+    }
 } 
